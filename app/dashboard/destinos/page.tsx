@@ -8,7 +8,7 @@ import ImagePicker from "@/components/ImagePicker";
 import Swal from "sweetalert2";
 import { getUser } from "@/lib/api";
 
-const emptyForm = { title: "", image: "", description: "", tours: 0, category: "" };
+const emptyForm = { title: "", image: "", images: [] as string[], price: 0, description: "", tours: 0, category: "" };
 
 export default function DestinosPage() {
     const [tours, setTours] = useState<Tour[]>([]);
@@ -49,6 +49,8 @@ export default function DestinosPage() {
         setForm({
             title: tour.title,
             image: tour.image,
+            images: tour.images || [],
+            price: tour.price,
             description: tour.description,
             tours: tour.tours,
             category: tour.category.join(", "),
@@ -62,6 +64,8 @@ export default function DestinosPage() {
         const payload = {
             title: form.title,
             image: form.image,
+            images: form.images,
+            price: Number(form.price),
             description: form.description,
             tours: Number(form.tours),
             category: form.category.split(",").map((c) => c.trim()).filter(Boolean),
@@ -213,6 +217,42 @@ export default function DestinosPage() {
                             value={form.image}
                             onChange={(url) => setForm({ ...form, image: url })}
                         />
+                        <div>
+                            <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Galeria de Fotos</label>
+                            {form.images.length > 0 && (
+                                <div className="mb-2 flex flex-wrap gap-2">
+                                    {form.images.map((url, idx) => (
+                                        <div key={idx} className="relative">
+                                            <img src={url} alt="" className="h-16 w-16 rounded object-cover border border-gray-300 dark:border-gray-600" />
+                                            <button
+                                                type="button"
+                                                className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white"
+                                                onClick={() => setForm({ ...form, images: form.images.filter((_, i) => i !== idx) })}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <ImagePicker
+                                label="Adicionar imagem"
+                                value=""
+                                onChange={(url) => setForm({ ...form, images: [...form.images, url] })}
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Preço (por viagem)</label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                required
+                                className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                value={form.price}
+                                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                            />
+                        </div>
                         <div>
                             <label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Categorias (separadas por vírgula)</label>
                             <input

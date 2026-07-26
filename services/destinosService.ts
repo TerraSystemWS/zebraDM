@@ -4,6 +4,8 @@ export interface Tour {
 	id: number;
 	title: string;
 	image: string;
+	images: string[];
+	price: number;
 	category: string[];
 	tours: number;
 	description: string;
