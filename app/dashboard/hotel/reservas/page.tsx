@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { Hotel, Reservation, Room, RoomType, hotelService } from "@/services/hotelService";
 import Modal from "@/components/Modal";
 import { getUser } from "@/lib/api";
+import { roomLabel } from "@/lib/roomLabel";
 
 const NOT_YET_PAID_STATUSES = ["PENDING_PAYMENT", "AWAITING_TRANSFER", "AWAITING_CASH", "CANCELLED", "FAILED"];
 const CHECK_IN_ELIGIBLE_STATUSES = ["CONFIRMED", "PAID"];
@@ -246,7 +247,7 @@ export default function HotelReservasPage() {
 								{filteredReservations.map((r) => (
 									<tr key={r.id}>
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.guestName}</td>
-										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.roomTypeName} — Nº {r.roomNumber}</td>
+										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{roomLabel(r.roomNumber, r.roomTypeName)}</td>
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.checkIn}</td>
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.checkOut}</td>
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">${r.totalAmount}</td>
@@ -295,7 +296,7 @@ export default function HotelReservasPage() {
 							<select required className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.roomId} onChange={(e) => setForm({ ...form, roomId: Number(e.target.value) })}>
 								{rooms.map((room) => {
 									const rt = roomTypes.find((t) => t.id === room.roomTypeId);
-									return <option key={room.id} value={room.id}>{rt?.name} — Nº {room.roomNumber}</option>;
+									return <option key={room.id} value={room.id}>{roomLabel(room.roomNumber, rt?.name || "")}</option>;
 								})}
 							</select>
 						</div>

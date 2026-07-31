@@ -158,7 +158,7 @@ export default function HotelConfigurarPage() {
 		}
 	};
 	const deleteRoom = async (room: Room) => {
-		const result = await Swal.fire({ title: `Apagar quarto "${room.roomNumber}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, apagar!" });
+		const result = await Swal.fire({ title: `Apagar o quarto "${room.roomNumber}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, apagar!" });
 		if (result.isConfirmed && selectedHotel) {
 			await hotelService.deleteRoom(room.id);
 			await loadRoomTypes(selectedHotel.id);
@@ -233,7 +233,7 @@ export default function HotelConfigurarPage() {
 											<div className="flex flex-wrap gap-2">
 												{(roomsByType[rt.id] || []).map((room) => (
 													<div key={room.id} className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600">
-														<span>Nº {room.roomNumber}</span>
+														<span>{room.roomNumber}</span>
 														<button className="text-blue-600" onClick={() => openEditRoom(rt.id, room)}>✎</button>
 														<button className="text-red-600" onClick={() => deleteRoom(room)}>✕</button>
 													</div>
@@ -309,8 +309,9 @@ export default function HotelConfigurarPage() {
 				<Modal title={editingRoom ? "Editar Quarto" : "Novo Quarto"} onClose={() => setRoomForm(null)}>
 					<form onSubmit={submitRoom} className="grid gap-4">
 						<div>
-							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Número</label>
-							<input required className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={roomForm.data.roomNumber} onChange={(e) => setRoomForm({ ...roomForm, data: { ...roomForm.data, roomNumber: e.target.value } })} />
+							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Código do Quarto</label>
+							<input required placeholder="ex: R22" className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={roomForm.data.roomNumber} onChange={(e) => setRoomForm({ ...roomForm, data: { ...roomForm.data, roomNumber: e.target.value } })} />
+							<p className="mt-1 text-xs text-gray-500 dark:text-gray-400">É este código que aparece em todo o lado (site, reservas, calendário) — ex: "R22" mostra-se como "R22 - {roomTypes.find((t) => t.id === roomForm.typeId)?.name || "Nome do Tipo"}". Tem de ser único dentro deste hotel.</p>
 						</div>
 						<div>
 							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Piso</label>

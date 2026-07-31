@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import { Hotel, Reservation, hotelService } from "@/services/hotelService";
 import Modal from "@/components/Modal";
+import { roomLabel } from "@/lib/roomLabel";
 
 const STATUS_LABELS: Record<string, string> = {
 	PENDING_PAYMENT: "Pendente",
@@ -229,14 +230,14 @@ export default function HotelCalendarioPage() {
 													onDragStart={() => setDragId(r.id)}
 													onDragEnd={() => setDragId(null)}
 													onClick={() => openEdit(r)}
-													title={`${r.guestName} — ${r.roomTypeName} Nº${r.roomNumber} (${r.checkIn} → ${r.checkOut})`}
+													title={`${r.guestName} — ${roomLabel(r.roomNumber, r.roomTypeName)} (${r.checkIn} → ${r.checkOut})`}
 													className={`flex cursor-pointer items-stretch overflow-hidden truncate border ${STATUS_COLORS[r.status] || "bg-gray-200 text-gray-800 border-gray-400"}`}
 												>
 													{r.roomImage && (
 														<img src={r.roomImage} alt="" className="h-4 w-5 shrink-0 bg-black/5 object-contain" />
 													)}
 													<span className="min-w-0 flex-1 truncate px-1 py-0.5 cursor-move">
-														{r.guestName} · Nº{r.roomNumber}
+														{r.guestName} · {r.roomNumber}
 													</span>
 												</div>
 											))}
@@ -253,7 +254,7 @@ export default function HotelCalendarioPage() {
 				<Modal title={`Reserva de ${editing.guestName}`} onClose={() => setEditing(null)}>
 					<form onSubmit={submitEdit} className="grid gap-4">
 						<p className="text-sm text-gray-600 dark:text-gray-300">
-							{editing.roomTypeName} — Nº {editing.roomNumber}
+							{roomLabel(editing.roomNumber, editing.roomTypeName)}
 						</p>
 						<div className="grid grid-cols-2 gap-4">
 							<div>
