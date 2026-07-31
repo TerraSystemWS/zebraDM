@@ -108,6 +108,7 @@ export default function DashboardLayout({
 
 					<div className="my-3 border-t border-gray-200 dark:border-gray-700"></div>
 					<NavLink label="Blog (Posts)" href="/dashboard/posts" />
+					<NavLink label="Galeria" href="/dashboard/galeria" />
 
 					<div className="my-3 border-t border-gray-200 dark:border-gray-700"></div>
 					<NavGroup
