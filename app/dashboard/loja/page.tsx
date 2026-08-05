@@ -106,7 +106,7 @@ export default function LojaPage() {
 
 	return (
 		<div className="container mx-auto p-6">
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
 					Gestão de Produtos (Loja)
 				</h1>

@@ -42,7 +42,7 @@ export default function DashboardPage() {
 
 			<div className="mt-8">
 				<h3 className="mb-4 text-xl font-semibold text-gray-700 dark:text-gray-200">Atividades Recentes</h3>
-				<div className="bg-white shadow-md rounded-lg overflow-hidden dark:bg-gray-800">
+				<div className="bg-white shadow-md rounded-lg overflow-x-auto dark:bg-gray-800">
 					<table className="min-w-full leading-normal">
 						<thead>
 							<tr>

@@ -139,7 +139,7 @@ export default function ContentEditorPage() {
 
     return (
         <div className="container mx-auto p-6">
-            <header className="mb-6 flex items-center justify-between">
+            <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Editor de Conteúdo Estático</h1>
                     <p className="text-gray-500 dark:text-gray-400">Edite os textos fixos de todo o site aqui, em cada idioma.</p>
@@ -531,7 +531,7 @@ export default function ContentEditorPage() {
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <div className="mb-2 flex items-center justify-between">
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Pacotes</label>
                                 <button
                                     type="button"
@@ -547,7 +547,7 @@ export default function ContentEditorPage() {
                             <div className="grid gap-4">
                                 {content.home.groupTravel.items?.map((item: any, idx: number) => (
                                     <div key={idx} className="grid gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Pacote #{idx + 1}</span>
                                             <button
                                                 type="button"
@@ -639,7 +639,7 @@ export default function ContentEditorPage() {
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <div className="mb-2 flex items-center justify-between">
+                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Depoimentos</label>
                                 <button
                                     type="button"
@@ -654,7 +654,7 @@ export default function ContentEditorPage() {
                             <div className="grid gap-4">
                                 {content.home.testimonials.items?.map((item: any, idx: number) => (
                                     <div key={idx} className="grid gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
                                             <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Depoimento #{idx + 1}</span>
                                             <button
                                                 type="button"

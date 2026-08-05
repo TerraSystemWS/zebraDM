@@ -169,7 +169,7 @@ export default function HotelConfigurarPage() {
 
 	return (
 		<div className="container mx-auto p-6">
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">Editar / Configurar Hotéis</h1>
 				<button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" onClick={openCreateHotel}>
 					Novo Hotel
@@ -182,7 +182,7 @@ export default function HotelConfigurarPage() {
 						{hotels.map((hotel) => (
 							<div
 								key={hotel.id}
-								className={`flex cursor-pointer items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700 ${selectedHotel?.id === hotel.id ? "bg-blue-50 dark:bg-gray-700" : ""}`}
+								className={`flex flex-wrap cursor-pointer items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700 ${selectedHotel?.id === hotel.id ? "bg-blue-50 dark:bg-gray-700" : ""}`}
 								onClick={() => setSelectedHotel(hotel)}
 							>
 								<div>
@@ -202,7 +202,7 @@ export default function HotelConfigurarPage() {
 				<div className="lg:col-span-2">
 					{selectedHotel ? (
 						<>
-							<div className="mb-4 flex items-center justify-between">
+							<div className="mb-4 flex flex-wrap items-center justify-between gap-3">
 								<h2 className="text-lg font-bold text-gray-800 dark:text-white">Tipos de Quarto — {selectedHotel.name}</h2>
 								<button className="rounded bg-gray-600 px-3 py-1.5 text-sm text-white hover:bg-gray-700" onClick={openCreateRoomType}>
 									Novo Tipo de Quarto
@@ -212,7 +212,7 @@ export default function HotelConfigurarPage() {
 							<div className="grid gap-4">
 								{roomTypes.map((rt) => (
 									<div key={rt.id} className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-										<div className="flex items-center justify-between">
+										<div className="flex flex-wrap items-center justify-between gap-2">
 											<div>
 												<p className="font-semibold text-gray-800 dark:text-white">{rt.name}</p>
 												<p className="text-sm text-gray-500 dark:text-gray-400">
@@ -226,7 +226,7 @@ export default function HotelConfigurarPage() {
 										</div>
 
 										<div className="mt-3 border-t border-gray-100 pt-3 dark:border-gray-700">
-											<div className="mb-2 flex items-center justify-between">
+											<div className="mb-2 flex flex-wrap items-center justify-between gap-2">
 												<p className="text-sm font-medium text-gray-600 dark:text-gray-300">Quartos</p>
 												<button className="text-sm text-blue-600" onClick={() => openCreateRoom(rt.id)}>+ Adicionar quarto</button>
 											</div>

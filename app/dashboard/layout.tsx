@@ -51,7 +51,9 @@ export default function DashboardLayout({
 	children: React.ReactNode;
 }) {
 	const router = useRouter();
+	const pathname = usePathname();
 	const [isLoading, setIsLoading] = useState(true);
+	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const isAdmin = getUser()?.role === "ADMIN";
 
 	useEffect(() => {
@@ -61,6 +63,10 @@ export default function DashboardLayout({
 			setIsLoading(false);
 		}
 	}, [router]);
+
+	useEffect(() => {
+		setSidebarOpen(false);
+	}, [pathname]);
 
 	const handleLogout = () => {
 		logout();
@@ -73,13 +79,36 @@ export default function DashboardLayout({
 
 	return (
 		<div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+			{/* Mobile backdrop */}
+			{sidebarOpen && (
+				<div
+					className="fixed inset-0 z-30 bg-black/50 md:hidden"
+					onClick={() => setSidebarOpen(false)}
+				/>
+			)}
+
 			{/* Sidebar */}
-			<aside className="hidden h-screen w-64 flex-col bg-white shadow-md dark:bg-gray-800 md:flex">
-				<div className="shrink-0 p-6">
-					<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-						ZebraDash
-					</h1>
-					<p className="text-sm text-gray-500 dark:text-gray-400">Dashboard</p>
+			<aside
+				className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-white shadow-md transition-transform duration-200 ease-in-out dark:bg-gray-800 md:static md:z-auto md:flex md:translate-x-0 ${
+					sidebarOpen ? "translate-x-0" : "-translate-x-full"
+				}`}
+			>
+				<div className="flex shrink-0 items-center justify-between p-6">
+					<div>
+						<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+							ZebraDash
+						</h1>
+						<p className="text-sm text-gray-500 dark:text-gray-400">Dashboard</p>
+					</div>
+					<button
+						className="text-gray-500 focus:outline-none md:hidden"
+						onClick={() => setSidebarOpen(false)}
+						aria-label="Fechar menu"
+					>
+						<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
 				</div>
 
 				<nav className="flex-1 overflow-y-auto pb-6">
@@ -136,7 +165,11 @@ export default function DashboardLayout({
 			<div className="flex flex-1 flex-col overflow-hidden">
 				{/* Topbar */}
 				<header className="flex items-center justify-between bg-white px-6 py-4 shadow dark:bg-gray-800">
-					<button className="text-gray-500 focus:outline-none md:hidden">
+					<button
+						className="text-gray-500 focus:outline-none md:hidden"
+						onClick={() => setSidebarOpen(true)}
+						aria-label="Abrir menu"
+					>
 						{/* Mobile Menu Button Icon */}
 						<svg
 							className="h-6 w-6"

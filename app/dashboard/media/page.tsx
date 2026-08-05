@@ -151,9 +151,9 @@ export default function MediaLibraryPage() {
 
 	return (
 		<div className="container mx-auto p-6">
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">Media Library</h1>
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
 					<button
 						className="rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700"
 						onClick={handleCreateFolder}

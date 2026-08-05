@@ -69,7 +69,7 @@ export default function HotelComodidadesPage() {
 
 	return (
 		<div className="container mx-auto p-6">
-			<div className="mb-6 flex items-center justify-between">
+			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<h1 className="text-2xl font-bold text-gray-800 dark:text-white">Comodidades</h1>
 					<p className="text-sm text-gray-500 dark:text-gray-400">
@@ -81,7 +81,7 @@ export default function HotelComodidadesPage() {
 				</button>
 			</div>
 
-			<div className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+			<div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
 				<table className="min-w-full leading-normal">
 					<thead>
 						<tr>

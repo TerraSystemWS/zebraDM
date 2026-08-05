@@ -169,7 +169,7 @@ export default function HotelCalendarioPage() {
 				<p className="text-gray-500">Crie primeiro um hotel em &quot;Editar/Configurar&quot;.</p>
 			) : (
 				<div className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
-					<div className="mb-4 flex items-center justify-between">
+					<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
 						<button
 							className="rounded bg-gray-200 px-3 py-1.5 text-sm hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
 							onClick={() => setMonthStart(new Date(monthStart.getFullYear(), monthStart.getMonth() - 1, 1))}
@@ -192,7 +192,8 @@ export default function HotelCalendarioPage() {
 					{loading ? (
 						<div className="p-6 text-center text-gray-500">Carregando...</div>
 					) : (
-						<div className="grid grid-cols-7 gap-1">
+						<div className="overflow-x-auto">
+						<div className="grid grid-cols-7 gap-1 min-w-[700px]">
 							{WEEKDAYS.map((wd) => (
 								<div key={wd} className="p-1 text-center text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
 									{wd}
@@ -245,6 +246,7 @@ export default function HotelCalendarioPage() {
 									</div>
 								);
 							})}
+						</div>
 						</div>
 					)}
 				</div>
