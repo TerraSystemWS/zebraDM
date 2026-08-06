@@ -49,6 +49,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 		} catch {
 			// ignore body parse errors
 		}
+
+		if (res.status === 401 && path !== "/api/auth/login") {
+			clearSession();
+			if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+				window.location.href = "/login";
+			}
+		}
+
 		throw new ApiError(res.status, message);
 	}
 

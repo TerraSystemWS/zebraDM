@@ -8,6 +8,8 @@ import Swal from "sweetalert2";
 
 const emptyForm: UserInput = { name: "", email: "", password: "", role: "CLIENT", status: "Active" };
 
+type Tab = "CLIENTS" | "STAFF";
+
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
@@ -15,6 +17,11 @@ export default function UsersPage() {
     const [editing, setEditing] = useState<User | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState<UserInput>(emptyForm);
+    const [tab, setTab] = useState<Tab>("CLIENTS");
+
+    const clients = users.filter((u) => u.role === "CLIENT");
+    const staff = users.filter((u) => u.role === "ADMIN" || u.role === "AGENTE");
+    const visibleUsers = tab === "CLIENTS" ? clients : staff;
 
     useEffect(() => {
         loadUsers();
@@ -35,7 +42,7 @@ export default function UsersPage() {
 
     const openCreate = () => {
         setEditing(null);
-        setForm(emptyForm);
+        setForm({ ...emptyForm, role: tab === "STAFF" ? "AGENTE" : "CLIENT" });
         setShowForm(true);
     };
 
@@ -106,6 +113,29 @@ export default function UsersPage() {
                 </button>
             </div>
 
+            <div className="mb-4 flex gap-2 border-b border-gray-200 dark:border-gray-700">
+                <button
+                    className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        tab === "CLIENTS"
+                            ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+                            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
+                    onClick={() => setTab("CLIENTS")}
+                >
+                    Utilizadores / Clientes ({clients.length})
+                </button>
+                <button
+                    className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                        tab === "STAFF"
+                            ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+                            : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    }`}
+                    onClick={() => setTab("STAFF")}
+                >
+                    ADM / Agentes ({staff.length})
+                </button>
+            </div>
+
             <div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
                 <table className="min-w-full leading-normal">
                     <thead>
@@ -128,7 +158,14 @@ export default function UsersPage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {users.map((user) => (
+                        {visibleUsers.length === 0 && (
+                            <tr>
+                                <td colSpan={5} className="border-b border-gray-200 bg-white px-5 py-8 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
+                                    Nenhum utilizador nesta categoria.
+                                </td>
+                            </tr>
+                        )}
+                        {visibleUsers.map((user) => (
                             <tr key={user.id}>
                                 <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
                                     <p className="whitespace-no-wrap font-medium text-gray-900 dark:text-white">
