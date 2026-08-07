@@ -85,9 +85,15 @@ export default function UsersPage() {
 
         if (result.isConfirmed) {
             try {
-                await usersService.delete(id);
-                setUsers(users.filter((u) => u.id !== id));
-                Swal.fire("Deletado!", "O usuário foi deletado.", "success");
+                const { hardDeleted } = await usersService.delete(id);
+                await loadUsers();
+                Swal.fire(
+                    "Feito!",
+                    hardDeleted
+                        ? "O usuário foi apagado."
+                        : "O usuário tinha reservas/avaliações associadas, por isso foi anonimizado em vez de apagado (histórico preservado).",
+                    "success"
+                );
             } catch (error) {
                 console.error("Error deleting user:", error);
                 Swal.fire("Erro", "Erro ao deletar usuário", "error");
@@ -183,26 +189,30 @@ export default function UsersPage() {
                                     </p>
                                 </td>
                                 <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${user.status === 'Active' ? 'text-green-900' : 'text-red-900'}`}>
-                                        <span aria-hidden className={`absolute inset-0 opacity-50 rounded-full ${user.status === 'Active' ? 'bg-green-200' : 'bg-red-200'}`}></span>
-                                        <span className="relative">{user.status}</span>
+                                    <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${user.status === 'Active' ? 'text-green-900' : user.status === 'Anonymized' ? 'text-gray-700' : 'text-red-900'}`}>
+                                        <span aria-hidden className={`absolute inset-0 opacity-50 rounded-full ${user.status === 'Active' ? 'bg-green-200' : user.status === 'Anonymized' ? 'bg-gray-300' : 'bg-red-200'}`}></span>
+                                        <span className="relative">{user.status === 'Anonymized' ? 'Removido' : user.status}</span>
                                     </span>
                                 </td>
                                 <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <div className="flex gap-2">
-                                        <button
-                                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                                            onClick={() => openEdit(user)}
-                                        >
-                                            Editar
-                                        </button>
-                                        <button
-                                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                            onClick={() => handleDelete(user.id)}
-                                        >
-                                            Deletar
-                                        </button>
-                                    </div>
+                                    {user.status === 'Anonymized' ? (
+                                        <span className="text-gray-400 dark:text-gray-500">—</span>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <button
+                                                className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                                onClick={() => openEdit(user)}
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                onClick={() => handleDelete(user.id)}
+                                            >
+                                                Deletar
+                                            </button>
+                                        </div>
+                                    )}
                                 </td>
                             </tr>
                         ))}

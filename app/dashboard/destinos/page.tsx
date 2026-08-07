@@ -6,7 +6,7 @@ import { Tour, destinosService } from "@/services/destinosService";
 import Modal from "@/components/Modal";
 import ImagePicker from "@/components/ImagePicker";
 import Swal from "sweetalert2";
-import { getUser } from "@/lib/api";
+import { ApiError, getUser } from "@/lib/api";
 
 const emptyForm = { title: "", image: "", images: [] as string[], price: 0, description: "", tours: 0, category: "" };
 
@@ -17,18 +17,19 @@ export default function DestinosPage() {
     const [editing, setEditing] = useState<Tour | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState(emptyForm);
+    const [showArchived, setShowArchived] = useState(false);
     const currentUser = getUser();
     const canDelete = (createdById?: number | null) =>
         currentUser?.role !== "AGENTE" || createdById === currentUser.id;
 
     useEffect(() => {
         loadTours();
-    }, []);
+    }, [showArchived]);
 
     const loadTours = async () => {
         setLoading(true);
         try {
-            const data = await destinosService.getAll();
+            const data = await destinosService.getAll(showArchived);
             setTours(data);
         } catch (error) {
             console.error("Error loading tours:", error);
@@ -69,6 +70,7 @@ export default function DestinosPage() {
             description: form.description,
             tours: Number(form.tours),
             category: form.category.split(",").map((c) => c.trim()).filter(Boolean),
+            status: editing ? editing.status : "ACTIVE",
         };
         try {
             if (editing) {
@@ -105,8 +107,44 @@ export default function DestinosPage() {
                 Swal.fire("Deletado!", "O destino foi deletado.", "success");
             } catch (error) {
                 console.error("Error deleting tour:", error);
-                Swal.fire("Erro", "Erro ao deletar destino", "error");
+                if (error instanceof ApiError && error.status === 409) {
+                    const retry = await Swal.fire({
+                        title: "Não é possível apagar",
+                        text: `${error.message} Queres arquivar em vez de apagar?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Arquivar",
+                        cancelButtonText: "Cancelar",
+                    });
+                    if (retry.isConfirmed) {
+                        await handleArchive(id);
+                    }
+                } else {
+                    Swal.fire("Erro", "Erro ao deletar destino", "error");
+                }
             }
+        }
+    };
+
+    const handleArchive = async (id: number) => {
+        try {
+            await destinosService.archive(id);
+            await loadTours();
+            Swal.fire("Arquivado!", "O destino foi arquivado.", "success");
+        } catch (error) {
+            console.error("Error archiving tour:", error);
+            Swal.fire("Erro", "Erro ao arquivar destino", "error");
+        }
+    };
+
+    const handleRestore = async (id: number) => {
+        try {
+            await destinosService.restore(id);
+            await loadTours();
+            Swal.fire("Restaurado!", "O destino foi restaurado.", "success");
+        } catch (error) {
+            console.error("Error restoring tour:", error);
+            Swal.fire("Erro", "Erro ao restaurar destino", "error");
         }
     };
 
@@ -120,12 +158,22 @@ export default function DestinosPage() {
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                     Gestão de Destinos
                 </h1>
-                <button
-                    className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                    onClick={openCreate}
-                >
-                    Novo Destino
-                </button>
+                <div className="flex flex-wrap items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        <input
+                            type="checkbox"
+                            checked={showArchived}
+                            onChange={(e) => setShowArchived(e.target.checked)}
+                        />
+                        Mostrar arquivados
+                    </label>
+                    <button
+                        className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                        onClick={openCreate}
+                    >
+                        Novo Destino
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
@@ -164,6 +212,11 @@ export default function DestinosPage() {
                                 <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
                                     <p className="whitespace-no-wrap text-gray-900 dark:text-white">
                                         {tour.title}
+                                        {tour.status === "ARCHIVED" && (
+                                            <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                                Arquivado
+                                            </span>
+                                        )}
                                     </p>
                                 </td>
                                 <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
@@ -185,12 +238,29 @@ export default function DestinosPage() {
                                             Editar
                                         </button>
                                         {canDelete(tour.createdById) && (
-                                            <button
-                                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                                                onClick={() => handleDelete(tour.id)}
-                                            >
-                                                Deletar
-                                            </button>
+                                            <>
+                                                {tour.status === "ARCHIVED" ? (
+                                                    <button
+                                                        className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                                                        onClick={() => handleRestore(tour.id)}
+                                                    >
+                                                        Restaurar
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+                                                        onClick={() => handleArchive(tour.id)}
+                                                    >
+                                                        Arquivar
+                                                    </button>
+                                                )}
+                                                <button
+                                                    className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                                                    onClick={() => handleDelete(tour.id)}
+                                                >
+                                                    Deletar
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </td>

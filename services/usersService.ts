@@ -25,7 +25,8 @@ interface UserDto {
 }
 
 function fromDto(dto: UserDto): User {
-	return { ...dto, status: dto.status === "ACTIVE" ? "Active" : "Inactive" };
+	const status = dto.status === "ACTIVE" ? "Active" : dto.status === "ANONYMIZED" ? "Anonymized" : "Inactive";
+	return { ...dto, status };
 }
 
 function toDto(input: UserInput) {
@@ -54,5 +55,6 @@ export const usersService = {
 		return fromDto(dto);
 	},
 
-	delete: (id: number): Promise<void> => api.delete<void>(`/api/users/${id}`),
+	delete: (id: number): Promise<{ hardDeleted: boolean }> =>
+		api.delete<{ hardDeleted: boolean }>(`/api/users/${id}`),
 };

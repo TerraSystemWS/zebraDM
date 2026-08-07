@@ -6,7 +6,7 @@ import { Produto, ProdutoInput, productsService } from "@/services/productsServi
 import Modal from "@/components/Modal";
 import ImagePicker from "@/components/ImagePicker";
 import Swal from "sweetalert2";
-import { getUser } from "@/lib/api";
+import { ApiError, getUser } from "@/lib/api";
 
 const emptyForm: ProdutoInput = { titulo: "", price: 0, imagemUrl: "", link: "", categoria: "", estoque: 0 };
 
@@ -17,18 +17,19 @@ export default function LojaPage() {
 	const [editing, setEditing] = useState<Produto | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [form, setForm] = useState<ProdutoInput>(emptyForm);
+	const [showArchived, setShowArchived] = useState(false);
 	const currentUser = getUser();
 	const canDelete = (createdById: number | null) =>
 		currentUser?.role !== "AGENTE" || createdById === currentUser.id;
 
 	useEffect(() => {
 		loadProdutos();
-	}, []);
+	}, [showArchived]);
 
 	const loadProdutos = async () => {
 		setLoading(true);
 		try {
-			const data = await productsService.getAll();
+			const data = await productsService.getAll(showArchived);
 			setProdutos(data);
 		} catch (error) {
 			console.error("Error loading products:", error);
@@ -95,8 +96,44 @@ export default function LojaPage() {
                 Swal.fire("Deletado!", "O produto foi deletado.", "success");
             } catch (error) {
                 console.error("Error deleting product:", error);
-                Swal.fire("Erro", "Erro ao deletar produto", "error");
+                if (error instanceof ApiError && error.status === 409) {
+                    const retry = await Swal.fire({
+                        title: "Não é possível apagar",
+                        text: `${error.message} Queres arquivar em vez de apagar?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Arquivar",
+                        cancelButtonText: "Cancelar",
+                    });
+                    if (retry.isConfirmed) {
+                        await handleArchive(id);
+                    }
+                } else {
+                    Swal.fire("Erro", "Erro ao deletar produto", "error");
+                }
             }
+        }
+    };
+
+    const handleArchive = async (id: number) => {
+        try {
+            await productsService.archive(id);
+            await loadProdutos();
+            Swal.fire("Arquivado!", "O produto foi arquivado.", "success");
+        } catch (error) {
+            console.error("Error archiving product:", error);
+            Swal.fire("Erro", "Erro ao arquivar produto", "error");
+        }
+    };
+
+    const handleRestore = async (id: number) => {
+        try {
+            await productsService.restore(id);
+            await loadProdutos();
+            Swal.fire("Restaurado!", "O produto foi restaurado.", "success");
+        } catch (error) {
+            console.error("Error restoring product:", error);
+            Swal.fire("Erro", "Erro ao restaurar produto", "error");
         }
     };
 
@@ -110,12 +147,22 @@ export default function LojaPage() {
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
 					Gestão de Produtos (Loja)
 				</h1>
-				<button
-					className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					onClick={openCreate}
-				>
-					Novo Produto
-				</button>
+				<div className="flex flex-wrap items-center gap-4">
+					<label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+						<input
+							type="checkbox"
+							checked={showArchived}
+							onChange={(e) => setShowArchived(e.target.checked)}
+						/>
+						Mostrar arquivados
+					</label>
+					<button
+						className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+						onClick={openCreate}
+					>
+						Novo Produto
+					</button>
+				</div>
 			</div>
 
 			<div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
@@ -149,6 +196,11 @@ export default function LojaPage() {
                                         </div>
                                         <p className="whitespace-no-wrap text-gray-900 dark:text-white">
                                             {produto.titulo}
+                                            {produto.status === "ARCHIVED" && (
+                                                <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                                    Arquivado
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
 								</td>
@@ -177,12 +229,29 @@ export default function LojaPage() {
 											Editar
 										</button>
 										{canDelete(produto.createdById) && (
-											<button
-												className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-												onClick={() => handleDelete(produto.id)}
-											>
-												Deletar
-											</button>
+											<>
+												{produto.status === "ARCHIVED" ? (
+													<button
+														className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+														onClick={() => handleRestore(produto.id)}
+													>
+														Restaurar
+													</button>
+												) : (
+													<button
+														className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+														onClick={() => handleArchive(produto.id)}
+													>
+														Arquivar
+													</button>
+												)}
+												<button
+													className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+													onClick={() => handleDelete(produto.id)}
+												>
+													Deletar
+												</button>
+											</>
 										)}
 									</div>
 								</td>

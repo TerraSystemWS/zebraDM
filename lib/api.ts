@@ -21,11 +21,13 @@ export function getUser(): { id: number; fullName: string; email: string; role: 
 	return raw ? JSON.parse(raw) : null;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
 	status: number;
-	constructor(status: number, message: string) {
+	details: string[];
+	constructor(status: number, message: string, details: string[] = []) {
 		super(message);
 		this.status = status;
+		this.details = details;
 	}
 }
 
@@ -43,9 +45,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 	if (!res.ok) {
 		let message = `Erro ${res.status}`;
+		let details: string[] = [];
 		try {
 			const body = await res.json();
 			message = body.message || message;
+			details = Array.isArray(body.details) ? body.details : [];
 		} catch {
 			// ignore body parse errors
 		}
@@ -57,7 +61,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 			}
 		}
 
-		throw new ApiError(res.status, message);
+		throw new ApiError(res.status, message, details);
 	}
 
 	if (res.status === 204) {

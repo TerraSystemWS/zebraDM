@@ -10,10 +10,12 @@ export interface Tour {
 	tours: number;
 	description: string;
 	createdById?: number | null;
+	status: string;
 }
 
 export const destinosService = {
-	getAll: (): Promise<Tour[]> => api.get<Tour[]>("/api/tours"),
+	getAll: (includeArchived = false): Promise<Tour[]> =>
+		api.get<Tour[]>(`/api/tours${includeArchived ? "?includeArchived=true" : ""}`),
 
 	getById: (id: number): Promise<Tour> => api.get<Tour>(`/api/tours/${id}`),
 
@@ -22,4 +24,8 @@ export const destinosService = {
 	update: (id: number, data: Partial<Tour>): Promise<Tour> => api.put<Tour>(`/api/tours/${id}`, data),
 
 	delete: (id: number): Promise<void> => api.delete<void>(`/api/tours/${id}`),
+
+	archive: (id: number): Promise<Tour> => api.post<Tour>(`/api/tours/${id}/archive`, {}),
+
+	restore: (id: number): Promise<Tour> => api.post<Tour>(`/api/tours/${id}/restore`, {}),
 };

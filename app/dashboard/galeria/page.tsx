@@ -44,15 +44,16 @@ export default function GaleriaPage() {
 	const [editing, setEditing] = useState<GalleryItem | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [form, setForm] = useState<FormState>(emptyForm);
+	const [showArchived, setShowArchived] = useState(false);
 
 	useEffect(() => {
 		loadItems();
-	}, []);
+	}, [showArchived]);
 
 	const loadItems = async () => {
 		setLoading(true);
 		try {
-			const data = await galleryService.getAll();
+			const data = await galleryService.getAll(showArchived);
 			setItems(data);
 		} catch (error) {
 			console.error("Error loading gallery:", error);
@@ -129,6 +130,28 @@ export default function GaleriaPage() {
 		}
 	};
 
+	const handleArchive = async (id: number) => {
+		try {
+			await galleryService.archive(id);
+			await loadItems();
+			Swal.fire("Arquivada!", "A imagem foi arquivada.", "success");
+		} catch (error) {
+			console.error("Error archiving gallery item:", error);
+			Swal.fire("Erro", "Erro ao arquivar a imagem", "error");
+		}
+	};
+
+	const handleRestore = async (id: number) => {
+		try {
+			await galleryService.restore(id);
+			await loadItems();
+			Swal.fire("Restaurada!", "A imagem foi restaurada.", "success");
+		} catch (error) {
+			console.error("Error restoring gallery item:", error);
+			Swal.fire("Erro", "Erro ao restaurar a imagem", "error");
+		}
+	};
+
 	if (loading) {
 		return <div className="p-6 text-gray-600 dark:text-gray-300">Carregando galeria...</div>;
 	}
@@ -142,12 +165,22 @@ export default function GaleriaPage() {
 						Imagens mostradas na página pública "Galeria" do site.
 					</p>
 				</div>
-				<button
-					className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					onClick={openCreate}
-				>
-					+ Adicionar Imagem
-				</button>
+				<div className="flex flex-wrap items-center gap-4">
+					<label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+						<input
+							type="checkbox"
+							checked={showArchived}
+							onChange={(e) => setShowArchived(e.target.checked)}
+						/>
+						Mostrar arquivadas
+					</label>
+					<button
+						className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+						onClick={openCreate}
+					>
+						+ Adicionar Imagem
+					</button>
+				</div>
 			</div>
 
 			{items.length === 0 ? (
@@ -161,12 +194,17 @@ export default function GaleriaPage() {
 							key={item.id}
 							className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800"
 						>
-							<div className="aspect-square w-full bg-gray-100 dark:bg-gray-700">
+							<div className="relative aspect-square w-full bg-gray-100 dark:bg-gray-700">
 								<img
 									src={item.imgSrc}
 									alt=""
 									className="h-full w-full object-cover"
 								/>
+								{item.status === "ARCHIVED" && (
+									<span className="absolute left-2 top-2 rounded-full bg-gray-800/80 px-2 py-0.5 text-xs text-white">
+										Arquivada
+									</span>
+								)}
 							</div>
 							<div className="p-3">
 								<div className="mb-2 flex flex-wrap gap-1">
@@ -183,13 +221,28 @@ export default function GaleriaPage() {
 										))
 									)}
 								</div>
-								<div className="flex gap-3 text-sm">
+								<div className="flex flex-wrap gap-3 text-sm">
 									<button
 										className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
 										onClick={() => openEdit(item)}
 									>
 										Editar
 									</button>
+									{item.status === "ARCHIVED" ? (
+										<button
+											className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+											onClick={() => handleRestore(item.id)}
+										>
+											Restaurar
+										</button>
+									) : (
+										<button
+											className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+											onClick={() => handleArchive(item.id)}
+										>
+											Arquivar
+										</button>
+									)}
 									<button
 										className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
 										onClick={() => handleDelete(item.id)}

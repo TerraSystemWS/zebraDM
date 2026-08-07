@@ -9,6 +9,7 @@ export interface Produto {
 	categoria: string;
 	estoque: number;
 	createdById: number | null;
+	status: string;
 }
 
 export interface ProdutoInput {
@@ -29,6 +30,7 @@ interface ProductDto {
 	category: string | null;
 	stockQuantity: number;
 	createdById: number | null;
+	status: string;
 }
 
 function fromDto(dto: ProductDto): Produto {
@@ -41,6 +43,7 @@ function fromDto(dto: ProductDto): Produto {
 		categoria: dto.category ?? "",
 		estoque: dto.stockQuantity ?? 0,
 		createdById: dto.createdById,
+		status: dto.status,
 	};
 }
 
@@ -56,8 +59,8 @@ function toDto(input: ProdutoInput) {
 }
 
 export const productsService = {
-	getAll: async (): Promise<Produto[]> => {
-		const data = await api.get<ProductDto[]>("/api/products");
+	getAll: async (includeArchived = false): Promise<Produto[]> => {
+		const data = await api.get<ProductDto[]>(`/api/products${includeArchived ? "?includeArchived=true" : ""}`);
 		return data.map(fromDto);
 	},
 
@@ -72,4 +75,14 @@ export const productsService = {
 	},
 
 	delete: (id: number): Promise<void> => api.delete<void>(`/api/products/${id}`),
+
+	archive: async (id: number): Promise<Produto> => {
+		const dto = await api.post<ProductDto>(`/api/products/${id}/archive`, {});
+		return fromDto(dto);
+	},
+
+	restore: async (id: number): Promise<Produto> => {
+		const dto = await api.post<ProductDto>(`/api/products/${id}/restore`, {});
+		return fromDto(dto);
+	},
 };

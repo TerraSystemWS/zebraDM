@@ -17,18 +17,19 @@ export default function PostsPage() {
 	const [editing, setEditing] = useState<Post | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [form, setForm] = useState<PostInput>(emptyForm);
+	const [showArchived, setShowArchived] = useState(false);
 	const currentUser = getUser();
 	const canManage = (createdById?: number | null) =>
 		currentUser?.role !== "AGENTE" || createdById === currentUser.id;
 
 	useEffect(() => {
 		loadPosts();
-	}, []);
+	}, [showArchived]);
 
 	const loadPosts = async () => {
 		setLoading(true);
 		try {
-			const data = await postsService.getAll();
+			const data = await postsService.getAll(showArchived);
 			setBlogPosts(data);
 		} catch (error) {
 			console.error("Error loading posts:", error);
@@ -102,6 +103,28 @@ export default function PostsPage() {
         }
     };
 
+    const handleArchive = async (id: number) => {
+        try {
+            await postsService.archive(id);
+            await loadPosts();
+            Swal.fire("Arquivado!", "O post foi arquivado.", "success");
+        } catch (error) {
+            console.error("Error archiving post:", error);
+            Swal.fire("Erro", "Erro ao arquivar post", "error");
+        }
+    };
+
+    const handleRestore = async (id: number) => {
+        try {
+            await postsService.restore(id);
+            await loadPosts();
+            Swal.fire("Restaurado!", "O post foi restaurado.", "success");
+        } catch (error) {
+            console.error("Error restoring post:", error);
+            Swal.fire("Erro", "Erro ao restaurar post", "error");
+        }
+    };
+
 	if (loading) {
 		return <div className="p-6 text-gray-600 dark:text-gray-300">Carregando posts...</div>;
 	}
@@ -112,12 +135,22 @@ export default function PostsPage() {
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
 					Gestão de Posts (Blog)
 				</h1>
-				<button
-					className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					onClick={openCreate}
-				>
-					Novo Post
-				</button>
+				<div className="flex flex-wrap items-center gap-4">
+					<label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+						<input
+							type="checkbox"
+							checked={showArchived}
+							onChange={(e) => setShowArchived(e.target.checked)}
+						/>
+						Mostrar arquivados
+					</label>
+					<button
+						className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+						onClick={openCreate}
+					>
+						Novo Post
+					</button>
+				</div>
 			</div>
 
 			<div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
@@ -151,6 +184,11 @@ export default function PostsPage() {
                                         </div>
                                         <p className="whitespace-no-wrap text-gray-900 dark:text-white">
                                             {post.title}
+                                            {post.status === "ARCHIVED" && (
+                                                <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                                                    Arquivado
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
 								</td>
@@ -180,6 +218,21 @@ export default function PostsPage() {
 												>
 													Editar
 												</button>
+												{post.status === "ARCHIVED" ? (
+													<button
+														className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+														onClick={() => handleRestore(post.id)}
+													>
+														Restaurar
+													</button>
+												) : (
+													<button
+														className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+														onClick={() => handleArchive(post.id)}
+													>
+														Arquivar
+													</button>
+												)}
 												<button
 													className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
 													onClick={() => handleDelete(post.id)}

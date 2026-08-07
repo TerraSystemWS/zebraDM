@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { Hotel, HotelAmenity, Room, RoomType, hotelService } from "@/services/hotelService";
 import Modal from "@/components/Modal";
 import ImagePicker from "@/components/ImagePicker";
+import { ApiError } from "@/lib/api";
 
 const emptyHotel = { name: "", address: "", city: "", description: "", image: "" };
 const emptyRoomType = { name: "", description: "", basePrice: 0, capacity: 2, image: "" };
@@ -17,6 +18,7 @@ export default function HotelConfigurarPage() {
 	const [roomsByType, setRoomsByType] = useState<Record<number, Room[]>>({});
 	const [amenities, setAmenities] = useState<HotelAmenity[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [showArchived, setShowArchived] = useState(false);
 
 	const [hotelForm, setHotelForm] = useState<typeof emptyHotel | null>(null);
 	const [editingHotel, setEditingHotel] = useState<Hotel | null>(null);
@@ -30,16 +32,16 @@ export default function HotelConfigurarPage() {
 	useEffect(() => {
 		loadHotels();
 		hotelService.getAmenities().then(setAmenities).catch(() => {});
-	}, []);
+	}, [showArchived]);
 
 	useEffect(() => {
 		if (selectedHotel) loadRoomTypes(selectedHotel.id);
-	}, [selectedHotel]);
+	}, [selectedHotel, showArchived]);
 
 	const loadHotels = async () => {
 		setLoading(true);
 		try {
-			const data = await hotelService.getHotels();
+			const data = await hotelService.getHotels(showArchived);
 			setHotels(data);
 			if (data.length > 0 && !selectedHotel) setSelectedHotel(data[0]);
 		} catch (error) {
@@ -51,10 +53,26 @@ export default function HotelConfigurarPage() {
 	};
 
 	const loadRoomTypes = async (hotelId: number) => {
-		const types = await hotelService.getRoomTypes(hotelId);
+		const types = await hotelService.getRoomTypes(hotelId, showArchived);
 		setRoomTypes(types);
-		const roomsEntries = await Promise.all(types.map(async (t) => [t.id, await hotelService.getRooms(t.id)] as const));
+		const roomsEntries = await Promise.all(types.map(async (t) => [t.id, await hotelService.getRooms(t.id, showArchived)] as const));
 		setRoomsByType(Object.fromEntries(roomsEntries));
+	};
+
+	const offerArchiveInstead = async (error: unknown, archiveFn: () => Promise<void>) => {
+		if (error instanceof ApiError && error.status === 409) {
+			const retry = await Swal.fire({
+				title: "Não é possível apagar",
+				text: `${error.message} Queres arquivar em vez de apagar?`,
+				icon: "warning",
+				showCancelButton: true,
+				confirmButtonText: "Arquivar",
+				cancelButtonText: "Cancelar",
+			});
+			if (retry.isConfirmed) await archiveFn();
+			return true;
+		}
+		return false;
 	};
 
 	// ---- Hotel CRUD ----
@@ -82,10 +100,27 @@ export default function HotelConfigurarPage() {
 	const deleteHotel = async (hotel: Hotel) => {
 		const result = await Swal.fire({ title: `Apagar "${hotel.name}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, apagar!" });
 		if (result.isConfirmed) {
-			await hotelService.deleteHotel(hotel.id);
-			if (selectedHotel?.id === hotel.id) setSelectedHotel(null);
-			await loadHotels();
+			try {
+				await hotelService.deleteHotel(hotel.id);
+				if (selectedHotel?.id === hotel.id) setSelectedHotel(null);
+				await loadHotels();
+			} catch (error) {
+				const handled = await offerArchiveInstead(error, () => archiveHotel(hotel));
+				if (!handled) Swal.fire("Erro", "Erro ao apagar hotel", "error");
+			}
 		}
+	};
+
+	const archiveHotel = async (hotel: Hotel) => {
+		await hotelService.archiveHotel(hotel.id);
+		await loadHotels();
+		Swal.fire("Arquivado!", "O hotel foi arquivado.", "success");
+	};
+
+	const restoreHotel = async (hotel: Hotel) => {
+		await hotelService.restoreHotel(hotel.id);
+		await loadHotels();
+		Swal.fire("Restaurado!", "O hotel foi restaurado.", "success");
 	};
 
 	// ---- RoomType CRUD ----
@@ -119,9 +154,28 @@ export default function HotelConfigurarPage() {
 	const deleteRoomType = async (rt: RoomType) => {
 		const result = await Swal.fire({ title: `Apagar "${rt.name}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, apagar!" });
 		if (result.isConfirmed && selectedHotel) {
-			await hotelService.deleteRoomType(rt.id);
-			await loadRoomTypes(selectedHotel.id);
+			try {
+				await hotelService.deleteRoomType(rt.id);
+				await loadRoomTypes(selectedHotel.id);
+			} catch (error) {
+				const handled = await offerArchiveInstead(error, () => archiveRoomType(rt));
+				if (!handled) Swal.fire("Erro", "Erro ao apagar tipo de quarto", "error");
+			}
 		}
+	};
+
+	const archiveRoomType = async (rt: RoomType) => {
+		if (!selectedHotel) return;
+		await hotelService.archiveRoomType(rt.id);
+		await loadRoomTypes(selectedHotel.id);
+		Swal.fire("Arquivado!", "O tipo de quarto foi arquivado.", "success");
+	};
+
+	const restoreRoomType = async (rt: RoomType) => {
+		if (!selectedHotel) return;
+		await hotelService.restoreRoomType(rt.id);
+		await loadRoomTypes(selectedHotel.id);
+		Swal.fire("Restaurado!", "O tipo de quarto foi restaurado.", "success");
 	};
 
 	// ---- Room CRUD ----
@@ -160,9 +214,28 @@ export default function HotelConfigurarPage() {
 	const deleteRoom = async (room: Room) => {
 		const result = await Swal.fire({ title: `Apagar o quarto "${room.roomNumber}"?`, icon: "warning", showCancelButton: true, confirmButtonText: "Sim, apagar!" });
 		if (result.isConfirmed && selectedHotel) {
-			await hotelService.deleteRoom(room.id);
-			await loadRoomTypes(selectedHotel.id);
+			try {
+				await hotelService.deleteRoom(room.id);
+				await loadRoomTypes(selectedHotel.id);
+			} catch (error) {
+				const handled = await offerArchiveInstead(error, () => archiveRoom(room));
+				if (!handled) Swal.fire("Erro", "Erro ao apagar quarto", "error");
+			}
 		}
+	};
+
+	const archiveRoom = async (room: Room) => {
+		if (!selectedHotel) return;
+		await hotelService.archiveRoom(room.id);
+		await loadRoomTypes(selectedHotel.id);
+		Swal.fire("Arquivado!", "O quarto foi arquivado.", "success");
+	};
+
+	const restoreRoom = async (room: Room) => {
+		if (!selectedHotel) return;
+		await hotelService.restoreRoom(room.id);
+		await loadRoomTypes(selectedHotel.id);
+		Swal.fire("Restaurado!", "O quarto foi restaurado.", "success");
 	};
 
 	if (loading) return <div className="p-6 text-gray-600 dark:text-gray-300">Carregando...</div>;
@@ -171,9 +244,15 @@ export default function HotelConfigurarPage() {
 		<div className="container mx-auto p-6">
 			<div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">Editar / Configurar Hotéis</h1>
-				<button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" onClick={openCreateHotel}>
-					Novo Hotel
-				</button>
+				<div className="flex flex-wrap items-center gap-4">
+					<label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+						<input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+						Mostrar arquivados
+					</label>
+					<button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" onClick={openCreateHotel}>
+						Novo Hotel
+					</button>
+				</div>
 			</div>
 
 			<div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -186,11 +265,21 @@ export default function HotelConfigurarPage() {
 								onClick={() => setSelectedHotel(hotel)}
 							>
 								<div>
-									<p className="font-medium text-gray-800 dark:text-white">{hotel.name}</p>
+									<p className="font-medium text-gray-800 dark:text-white">
+										{hotel.name}
+										{hotel.status === "ARCHIVED" && (
+											<span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">Arquivado</span>
+										)}
+									</p>
 									<p className="text-xs text-gray-500 dark:text-gray-400">{hotel.city}</p>
 								</div>
 								<div className="flex gap-2 text-sm">
 									<button className="text-blue-600" onClick={(e) => { e.stopPropagation(); openEditHotel(hotel); }}>Editar</button>
+									{hotel.status === "ARCHIVED" ? (
+										<button className="text-green-600" onClick={(e) => { e.stopPropagation(); restoreHotel(hotel); }}>Restaurar</button>
+									) : (
+										<button className="text-amber-600" onClick={(e) => { e.stopPropagation(); archiveHotel(hotel); }}>Arquivar</button>
+									)}
 									<button className="text-red-600" onClick={(e) => { e.stopPropagation(); deleteHotel(hotel); }}>Apagar</button>
 								</div>
 							</div>
@@ -214,13 +303,23 @@ export default function HotelConfigurarPage() {
 									<div key={rt.id} className="rounded-lg bg-white p-4 shadow dark:bg-gray-800">
 										<div className="flex flex-wrap items-center justify-between gap-2">
 											<div>
-												<p className="font-semibold text-gray-800 dark:text-white">{rt.name}</p>
+												<p className="font-semibold text-gray-800 dark:text-white">
+													{rt.name}
+													{rt.status === "ARCHIVED" && (
+														<span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">Arquivado</span>
+													)}
+												</p>
 												<p className="text-sm text-gray-500 dark:text-gray-400">
 													${rt.basePrice}/noite &middot; até {rt.capacity} pessoas
 												</p>
 											</div>
 											<div className="flex gap-2 text-sm">
 												<button className="text-blue-600" onClick={() => openEditRoomType(rt)}>Editar</button>
+												{rt.status === "ARCHIVED" ? (
+													<button className="text-green-600" onClick={() => restoreRoomType(rt)}>Restaurar</button>
+												) : (
+													<button className="text-amber-600" onClick={() => archiveRoomType(rt)}>Arquivar</button>
+												)}
 												<button className="text-red-600" onClick={() => deleteRoomType(rt)}>Apagar</button>
 											</div>
 										</div>
@@ -233,8 +332,16 @@ export default function HotelConfigurarPage() {
 											<div className="flex flex-wrap gap-2">
 												{(roomsByType[rt.id] || []).map((room) => (
 													<div key={room.id} className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600">
-														<span>{room.roomNumber}</span>
+														<span>
+															{room.roomNumber}
+															{room.status === "ARCHIVED" && <span className="ml-1 text-gray-400">(arquivado)</span>}
+														</span>
 														<button className="text-blue-600" onClick={() => openEditRoom(rt.id, room)}>✎</button>
+														{room.status === "ARCHIVED" ? (
+															<button className="text-green-600" onClick={() => restoreRoom(room)}>↺</button>
+														) : (
+															<button className="text-amber-600" onClick={() => archiveRoom(room)}>🗄</button>
+														)}
 														<button className="text-red-600" onClick={() => deleteRoom(room)}>✕</button>
 													</div>
 												))}

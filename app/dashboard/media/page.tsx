@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MediaFolder, MediaItem, mediaService } from "@/services/mediaService";
 import Swal from "sweetalert2";
+import { ApiError } from "@/lib/api";
 
 function formatSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -122,7 +123,15 @@ export default function MediaLibraryPage() {
 				Swal.fire("Apagado!", "O ficheiro foi apagado.", "success");
 			} catch (error) {
 				console.error("Error deleting item:", error);
-				Swal.fire("Erro", "Não foi possível apagar o ficheiro", "error");
+				if (error instanceof ApiError && error.status === 409) {
+					Swal.fire({
+						title: "Ficheiro em uso",
+						html: `<p>${error.message}</p><ul style="text-align:left;margin-top:8px;">${error.details.map((d) => `<li>${d}</li>`).join("")}</ul>`,
+						icon: "warning",
+					});
+				} else {
+					Swal.fire("Erro", "Não foi possível apagar o ficheiro", "error");
+				}
 			}
 		}
 	};

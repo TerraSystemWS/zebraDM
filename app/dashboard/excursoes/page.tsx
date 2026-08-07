@@ -6,7 +6,7 @@ import { Excursao, excursoesService } from "@/services/excursoesService";
 import Modal from "@/components/Modal";
 import ImagePicker from "@/components/ImagePicker";
 import Swal from "sweetalert2";
-import { getUser } from "@/lib/api";
+import { ApiError, getUser } from "@/lib/api";
 
 const emptyForm = {
 	slug: "",
@@ -37,18 +37,19 @@ export default function ExcursoesPage() {
 	const [editing, setEditing] = useState<Excursao | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [form, setForm] = useState(emptyForm);
+	const [showArchived, setShowArchived] = useState(false);
 	const currentUser = getUser();
 	const canDelete = (createdById?: number | null) =>
 		currentUser?.role !== "AGENTE" || createdById === currentUser.id;
 
 	useEffect(() => {
 		loadExcursoes();
-	}, []);
+	}, [showArchived]);
 
 	const loadExcursoes = async () => {
 		setLoading(true);
 		try {
-			const data = await excursoesService.getAll();
+			const data = await excursoesService.getAll(showArchived);
 			setExcursoes(data);
 		} catch (error) {
 			console.error("Error loading excursions:", error);
@@ -95,6 +96,7 @@ export default function ExcursoesPage() {
 			reviews: Number(form.reviews),
 			description: form.description,
 			categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
+			status: editing ? editing.status : "ACTIVE",
 		};
 		try {
 			if (editing) {
@@ -131,8 +133,44 @@ export default function ExcursoesPage() {
 				Swal.fire("Deletado!", "A excursão foi deletada.", "success");
 			} catch (error) {
 				console.error("Error deleting excursion:", error);
-				Swal.fire("Erro", "Erro ao deletar excursão", "error");
+				if (error instanceof ApiError && error.status === 409) {
+					const retry = await Swal.fire({
+						title: "Não é possível apagar",
+						text: `${error.message} Queres arquivar em vez de apagar?`,
+						icon: "warning",
+						showCancelButton: true,
+						confirmButtonText: "Arquivar",
+						cancelButtonText: "Cancelar",
+					});
+					if (retry.isConfirmed) {
+						await handleArchive(slug);
+					}
+				} else {
+					Swal.fire("Erro", "Erro ao deletar excursão", "error");
+				}
 			}
+		}
+	};
+
+	const handleArchive = async (slug: string) => {
+		try {
+			await excursoesService.archive(slug);
+			await loadExcursoes();
+			Swal.fire("Arquivada!", "A excursão foi arquivada.", "success");
+		} catch (error) {
+			console.error("Error archiving excursion:", error);
+			Swal.fire("Erro", "Erro ao arquivar excursão", "error");
+		}
+	};
+
+	const handleRestore = async (slug: string) => {
+		try {
+			await excursoesService.restore(slug);
+			await loadExcursoes();
+			Swal.fire("Restaurada!", "A excursão foi restaurada.", "success");
+		} catch (error) {
+			console.error("Error restoring excursion:", error);
+			Swal.fire("Erro", "Erro ao restaurar excursão", "error");
 		}
 	};
 
@@ -146,12 +184,22 @@ export default function ExcursoesPage() {
 				<h1 className="text-2xl font-bold text-gray-800 dark:text-white">
 					Gestão de Excursões
 				</h1>
-				<button
-					className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					onClick={openCreate}
-				>
-					Nova Excursão
-				</button>
+				<div className="flex flex-wrap items-center gap-4">
+					<label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+						<input
+							type="checkbox"
+							checked={showArchived}
+							onChange={(e) => setShowArchived(e.target.checked)}
+						/>
+						Mostrar arquivados
+					</label>
+					<button
+						className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+						onClick={openCreate}
+					>
+						Nova Excursão
+					</button>
+				</div>
 			</div>
 
 			<div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
@@ -186,6 +234,9 @@ export default function ExcursoesPage() {
 										<p className="whitespace-no-wrap text-gray-900 dark:text-white">
 											{excursao.title}
 										</p>
+										{excursao.status === "ARCHIVED" && (
+											<span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-300">Arquivada</span>
+										)}
 									</div>
 								</td>
 								<td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
@@ -213,12 +264,29 @@ export default function ExcursoesPage() {
 											Editar
 										</button>
 										{canDelete(excursao.createdById) && (
-											<button
-												className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-												onClick={() => handleDelete(excursao.slug)}
-											>
-												Deletar
-											</button>
+											<>
+												{excursao.status === "ARCHIVED" ? (
+													<button
+														className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+														onClick={() => handleRestore(excursao.slug)}
+													>
+														Restaurar
+													</button>
+												) : (
+													<button
+														className="text-amber-600 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300"
+														onClick={() => handleArchive(excursao.slug)}
+													>
+														Arquivar
+													</button>
+												)}
+												<button
+													className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+													onClick={() => handleDelete(excursao.slug)}
+												>
+													Deletar
+												</button>
+											</>
 										)}
 									</div>
 								</td>
