@@ -26,6 +26,7 @@ import {
 	Settings2,
 	ShoppingBag,
 	Sparkles,
+	Truck,
 	UserCog,
 	Users,
 	X,
@@ -153,8 +154,8 @@ export default function DashboardLayout({
 					<NavGroup
 						title="Excursões"
 						items={[
-							{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
 							{ label: "Reservas (Excursões)", href: "/dashboard/bookings", icon: CalendarCheck },
+							{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
 						]}
 					/>
 
@@ -181,6 +182,7 @@ export default function DashboardLayout({
 						title="Loja"
 						items={[
 							{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
+							{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
 						]}
 					/>
 

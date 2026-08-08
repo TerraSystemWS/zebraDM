@@ -7,7 +7,6 @@ export interface Booking {
 	tour: string;
 	date: string;
 	status: "Pending" | "Confirmed" | "Cancelled";
-	paymentStatus: "PAID" | "UNPAID";
 	amount: number;
 	excursionSlug: string | null;
 	tourId: number | null;
@@ -21,7 +20,6 @@ interface BookingDto {
 	item: string;
 	date: string;
 	status: string;
-	paymentStatus: string;
 	amount: number;
 	excursionSlug: string | null;
 	tourId: number | null;
@@ -42,7 +40,6 @@ function fromDto(dto: BookingDto): Booking {
 		tour: dto.item,
 		date: dto.date,
 		status: STATUS_MAP[dto.status] ?? "Pending",
-		paymentStatus: dto.paymentStatus === "PAID" ? "PAID" : "UNPAID",
 		amount: dto.amount,
 		excursionSlug: dto.excursionSlug,
 		tourId: dto.tourId,
@@ -58,7 +55,4 @@ export const bookingsService = {
 
 	updateStatus: (id: number, status: string): Promise<void> =>
 		api.patch<void>(`/api/bookings/${id}/status`, { status: status.toUpperCase() }),
-
-	updatePaymentStatus: (id: number, paymentStatus: "PAID" | "UNPAID"): Promise<void> =>
-		api.patch<void>(`/api/bookings/${id}/payment-status`, { paymentStatus }),
 };

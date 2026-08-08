@@ -15,10 +15,11 @@ export interface Testimonial {
 
 export type TestimonialInput = Omit<Testimonial, "id" | "sourceReviewType" | "sourceReviewId">;
 
+// Sem create() de propósito — testemunhos só nascem de uma review real de cliente
+// (POST /api/testimonials/from-review, chamado pelo zebratravel), nunca manualmente
+// pelo admin/agente aqui. Editar/apagar continuam disponíveis para moderação.
 export const testimonialsService = {
 	getAll: (): Promise<Testimonial[]> => api.get<Testimonial[]>("/api/testimonials"),
-
-	create: (input: TestimonialInput): Promise<Testimonial> => api.post<Testimonial>("/api/testimonials", input),
 
 	update: (id: number, input: TestimonialInput): Promise<Testimonial> =>
 		api.put<Testimonial>(`/api/testimonials/${id}`, input),

@@ -62,17 +62,20 @@ export default function BookingsPage() {
             list.push(booking);
             bySlug.set(booking.excursionSlug, list);
         }
-        return Array.from(bySlug.entries()).map(([slug, list]) => {
-            const excursion = excursions.find((e) => e.slug === slug);
-            return {
-                slug,
-                title: excursion?.title ?? list[0].tour,
-                price: excursion?.price ?? 0,
-                groupTravelStatus: excursion?.groupTravelStatus ?? "OPEN",
-                groupTravelConfirmedDate: excursion?.groupTravelConfirmedDate ?? null,
-                bookings: list,
-            };
-        });
+        return Array.from(bySlug.entries())
+            .map(([slug, list]) => {
+                const excursion = excursions.find((e) => e.slug === slug);
+                if (!excursion) return null;
+                return {
+                    slug,
+                    title: excursion.title,
+                    price: excursion.price,
+                    groupTravelStatus: excursion.groupTravelStatus,
+                    groupTravelConfirmedDate: excursion.groupTravelConfirmedDate,
+                    bookings: list,
+                };
+            })
+            .filter((group): group is ExcursionGroup => group !== null);
     }, [bookings, excursions]);
 
     const toggleExpanded = (slug: string) => {
@@ -82,12 +85,21 @@ export default function BookingsPage() {
     const handleConfirmDate = async (group: ExcursionGroup) => {
         const { value: confirmedDate } = await Swal.fire({
             title: `Confirmar data final — ${group.title}`,
-            input: "text",
-            inputAttributes: { type: "date" },
-            inputValue: group.groupTravelConfirmedDate ?? "",
+            html:
+                '<label for="swal-confirm-date" style="display:block;font-size:13px;color:#666;margin-bottom:6px;text-align:left;">Data final (AAAA-MM-DD)</label>' +
+                `<input type="date" id="swal-confirm-date" class="swal2-input" style="margin:0;width:100%;" value="${group.groupTravelConfirmedDate ?? ""}" />`,
+            focusConfirm: false,
             showCancelButton: true,
             confirmButtonText: "Confirmar",
             cancelButtonText: "Cancelar",
+            preConfirm: () => {
+                const input = document.getElementById("swal-confirm-date") as HTMLInputElement | null;
+                if (!input || !input.value) {
+                    Swal.showValidationMessage("Escolhe uma data");
+                    return false;
+                }
+                return input.value;
+            },
         });
         if (!confirmedDate) return;
         try {
@@ -141,17 +153,6 @@ export default function BookingsPage() {
         } catch (error) {
             console.error("Error updating booking:", error);
             Swal.fire("Erro", "Erro ao atualizar reserva", "error");
-        }
-    };
-
-    const handleTogglePayment = async (booking: Booking) => {
-        const newStatus = booking.paymentStatus === "PAID" ? "UNPAID" : "PAID";
-        try {
-            await bookingsService.updatePaymentStatus(booking.id, newStatus);
-            loadAll();
-        } catch (error) {
-            console.error("Error updating payment status:", error);
-            Swal.fire("Erro", "Erro ao atualizar estado de pagamento", "error");
         }
     };
 
@@ -226,7 +227,7 @@ export default function BookingsPage() {
                                 <table className="min-w-full leading-normal">
                                     <thead>
                                         <tr>
-                                            {["Cliente", "Email", "Data preferida", "Status", "Pagamento", "Valor"].map((h) => (
+                                            {["Cliente", "Email", "Data preferida", "Status", "Valor"].map((h) => (
                                                 <th
                                                     key={h}
                                                     className="border-b-2 border-gray-200 bg-gray-50 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700/50 dark:text-gray-300"
@@ -254,18 +255,6 @@ export default function BookingsPage() {
                                                         onClick={() => handleStatusChange(booking)}
                                                     >
                                                         {booking.status}
-                                                    </button>
-                                                </td>
-                                                <td className="border-b border-gray-100 px-4 py-3 text-sm">
-                                                    <button
-                                                        onClick={() => handleTogglePayment(booking)}
-                                                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                                                            booking.paymentStatus === "PAID"
-                                                                ? "bg-green-200 text-green-900"
-                                                                : "bg-red-200 text-red-900"
-                                                        }`}
-                                                    >
-                                                        {booking.paymentStatus === "PAID" ? "Paga" : "Não paga"}
                                                     </button>
                                                 </td>
                                                 <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">

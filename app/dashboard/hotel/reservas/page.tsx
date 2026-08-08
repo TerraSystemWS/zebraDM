@@ -53,6 +53,7 @@ export default function HotelReservasPage() {
 	const [guestFilter, setGuestFilter] = useState("");
 	const [roomFilter, setRoomFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
+	const [showCompleted, setShowCompleted] = useState(false);
 	const isAdmin = getUser()?.role === "ADMIN";
 
 	useEffect(() => {
@@ -166,16 +167,31 @@ export default function HotelReservasPage() {
 		}
 	};
 
+	const matchesTextFilters = (r: Reservation, guestQuery: string, roomQuery: string) => {
+		if (guestQuery && !r.guestName.toLowerCase().includes(guestQuery)) return false;
+		if (roomQuery && !(r.roomNumber || "").toLowerCase().includes(roomQuery) && !(r.roomTypeName || "").toLowerCase().includes(roomQuery)) return false;
+		return true;
+	};
+
+	// Reservas com check-out feito são "concluídas": já não têm mais operações possíveis
+	// (alterar estado, mover datas) e só aparecem se pedidas explicitamente — ver secção
+	// própria abaixo, nunca na lista principal nem no filtro "Todos os estados".
 	const filteredReservations = useMemo(() => {
 		const guestQuery = guestFilter.trim().toLowerCase();
 		const roomQuery = roomFilter.trim().toLowerCase();
 		return reservations.filter((r) => {
-			if (guestQuery && !r.guestName.toLowerCase().includes(guestQuery)) return false;
-			if (roomQuery && !(r.roomNumber || "").toLowerCase().includes(roomQuery) && !(r.roomTypeName || "").toLowerCase().includes(roomQuery)) return false;
+			if (r.checkedOutAt) return false;
+			if (!matchesTextFilters(r, guestQuery, roomQuery)) return false;
 			if (statusFilter && r.status !== statusFilter) return false;
 			return true;
 		});
 	}, [reservations, guestFilter, roomFilter, statusFilter]);
+
+	const completedReservations = useMemo(() => {
+		const guestQuery = guestFilter.trim().toLowerCase();
+		const roomQuery = roomFilter.trim().toLowerCase();
+		return reservations.filter((r) => r.checkedOutAt && matchesTextFilters(r, guestQuery, roomQuery));
+	}, [reservations, guestFilter, roomFilter]);
 
 	return (
 		<div className="container mx-auto p-6">
@@ -230,6 +246,15 @@ export default function HotelReservasPage() {
 						</select>
 					</div>
 
+					<div className="mb-4">
+						<button
+							className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+							onClick={() => setShowCompleted((v) => !v)}
+						>
+							{showCompleted ? "Ocultar" : "Mostrar"} reservas concluídas ({completedReservations.length})
+						</button>
+					</div>
+
 					<div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
 						<table className="min-w-full leading-normal">
 							<thead>
@@ -255,9 +280,7 @@ export default function HotelReservasPage() {
 											</span>
 										</td>
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white">
-											{r.checkedOutAt ? (
-												<span className="text-gray-500">Check-out feito</span>
-											) : r.checkedInAt ? (
+											{r.checkedInAt ? (
 												<button className="text-blue-600 hover:text-blue-900" onClick={() => doCheckOut(r)}>Fazer Check-out</button>
 											) : CHECK_IN_ELIGIBLE_STATUSES.includes(r.status) ? (
 												<button className="text-blue-600 hover:text-blue-900" onClick={() => doCheckIn(r)}>Fazer Check-in</button>
@@ -283,6 +306,41 @@ export default function HotelReservasPage() {
 							</tbody>
 						</table>
 					</div>
+
+					{showCompleted && (
+						<div className="mt-6 overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
+							<div className="border-b border-gray-100 px-5 py-3 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+								Reservas Concluídas (check-out feito — sem mais operações possíveis)
+							</div>
+							<table className="min-w-full leading-normal">
+								<thead>
+									<tr>
+										{["Hóspede", "Quarto", "Check-in", "Check-out", "Valor"].map((h) => (
+											<th key={h} className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
+												{h}
+											</th>
+										))}
+									</tr>
+								</thead>
+								<tbody>
+									{completedReservations.map((r) => (
+										<tr key={r.id}>
+											<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.guestName}</td>
+											<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{roomLabel(r.roomNumber, r.roomTypeName)}</td>
+											<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.checkIn}</td>
+											<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">{r.checkOut}</td>
+											<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">${r.totalAmount}</td>
+										</tr>
+									))}
+									{completedReservations.length === 0 && (
+										<tr>
+											<td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-500 dark:bg-gray-800">Sem reservas concluídas.</td>
+										</tr>
+									)}
+								</tbody>
+							</table>
+						</div>
+					)}
 				</>
 			)}
 

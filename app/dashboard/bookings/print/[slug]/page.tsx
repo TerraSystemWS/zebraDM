@@ -75,7 +75,6 @@ export default function PrintExcursionBookingsPage() {
                         <th className="py-2 text-left">Cliente</th>
                         <th className="py-2 text-left">Email</th>
                         <th className="py-2 text-left">Data preferida</th>
-                        <th className="py-2 text-left">Pagamento</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -84,12 +83,11 @@ export default function PrintExcursionBookingsPage() {
                             <td className="py-2">{b.user}</td>
                             <td className="py-2">{b.userEmail ?? "—"}</td>
                             <td className="py-2">{b.date}</td>
-                            <td className="py-2">{b.paymentStatus === "PAID" ? "Paga" : "Não paga"}</td>
                         </tr>
                     ))}
                     {confirmed.length === 0 && (
                         <tr>
-                            <td colSpan={4} className="py-4 text-gray-500 print:text-black">
+                            <td colSpan={3} className="py-4 text-gray-500 print:text-black">
                                 Ainda não há reservas confirmadas para esta excursão.
                             </td>
                         </tr>

@@ -46,12 +46,6 @@ export default function TestimonialsPage() {
 		}
 	};
 
-	const openCreate = () => {
-		setEditing(null);
-		setForm(emptyForm);
-		setShowForm(true);
-	};
-
 	const openEdit = (t: Testimonial) => {
 		setEditing(t);
 		setForm({
@@ -68,16 +62,13 @@ export default function TestimonialsPage() {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
+		if (!editing) return;
 		setSaving(true);
 		try {
-			if (editing) {
-				await testimonialsService.update(editing.id, form);
-			} else {
-				await testimonialsService.create(form);
-			}
+			await testimonialsService.update(editing.id, form);
 			setShowForm(false);
 			await load();
-			Swal.fire("Sucesso", editing ? "Testemunho atualizado." : "Testemunho adicionado.", "success");
+			Swal.fire("Sucesso", "Testemunho atualizado.", "success");
 		} catch (error) {
 			console.error("Error saving testimonial:", error);
 			Swal.fire("Erro", "Não foi possível guardar o testemunho", "error");
@@ -119,16 +110,10 @@ export default function TestimonialsPage() {
 				<div>
 					<h1 className="text-2xl font-bold text-gray-800 dark:text-white">Testemunhos</h1>
 					<p className="text-sm text-gray-500 dark:text-gray-400">
-						Mostrados no carrossel de testemunhos da home. Inclui os testemunhos criados manualmente e os
-						gerados por clientes a partir das suas reviews (reservas confirmadas).
+						Mostrados no carrossel de testemunhos da home. Só podem ser criados pelos próprios clientes,
+						a partir de uma review sua com reserva confirmada — aqui só é possível editar ou apagar.
 					</p>
 				</div>
-				<button
-					className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-					onClick={openCreate}
-				>
-					+ Adicionar Testemunho
-				</button>
 			</div>
 
 			{testimonials.length === 0 ? (
@@ -181,7 +166,7 @@ export default function TestimonialsPage() {
 			)}
 
 			{showForm && (
-				<Modal title={editing ? "Editar Testemunho" : "Novo Testemunho"} onClose={() => setShowForm(false)}>
+				<Modal title="Editar Testemunho" onClose={() => setShowForm(false)}>
 					<form onSubmit={handleSubmit} className="grid gap-4">
 						<ImagePicker
 							label="Foto (opcional)"
