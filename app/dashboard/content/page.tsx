@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { contentService } from "@/services/contentService";
-import ImagePicker from "@/components/ImagePicker";
 
 type Locale = "pt" | "en" | "fr";
 const LOCALES: { code: Locale; label: string }[] = [
@@ -81,39 +80,6 @@ export default function ContentEditorPage() {
             };
         });
     };
-
-    type ListSection = "testimonials" | "newsSection" | "groupTravel";
-
-    const updateListItemField = (section: ListSection, index: number, field: string, value: string, localized: boolean) => {
-        setContent((prev: any) => {
-            const items = [...prev.home[section].items];
-            const current = items[index];
-            items[index] = localized
-                ? { ...current, [field]: { ...current[field], [locale]: value } }
-                : { ...current, [field]: value };
-            return { ...prev, home: { ...prev.home, [section]: { ...prev.home[section], items } } };
-        });
-    };
-
-    const addListItem = (section: ListSection, template: any) => {
-        setContent((prev: any) => ({
-            ...prev,
-            home: {
-                ...prev.home,
-                [section]: { ...prev.home[section], items: [...(prev.home[section].items ?? []), template] }
-            }
-        }));
-    };
-
-    const removeListItem = (section: ListSection, index: number) => {
-        setContent((prev: any) => {
-            const items = [...prev.home[section].items];
-            items.splice(index, 1);
-            return { ...prev, home: { ...prev.home, [section]: { ...prev.home[section], items } } };
-        });
-    };
-
-    const emptyLocalized = () => ({ pt: "", en: "", fr: "" });
 
     const handleSave = async () => {
         try {
@@ -518,8 +484,12 @@ export default function ContentEditorPage() {
                 <section className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <h2 className="mb-4 flex items-center text-xl font-bold text-gray-800 dark:text-white">
                         <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300">9</span>
-                        Home Page - Pacotes de Viagem em Grupo
+                        Home Page - Excursões de Grupo
                     </h2>
+                    <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                        A lista de excursões mostrada aqui é agora dinâmica — vem das excursões cuja data foi
+                        confirmada em "Excursões &gt; Reservas (Excursões)". Só o texto do botão é editável aqui.
+                    </p>
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Texto do link "Ver Detalhes"</label>
@@ -530,86 +500,6 @@ export default function ContentEditorPage() {
                                 className="w-full rounded-lg border-gray-300 bg-gray-50 p-2.5 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                             />
                         </div>
-                        <div className="md:col-span-2">
-                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Pacotes</label>
-                                <button
-                                    type="button"
-                                    onClick={() => addListItem("groupTravel", {
-                                        duration: "", location: "", price: "", link: "#", imageUrl: "",
-                                        title: emptyLocalized(), description: emptyLocalized()
-                                    })}
-                                    className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
-                                >
-                                    + Adicionar Pacote
-                                </button>
-                            </div>
-                            <div className="grid gap-4">
-                                {content.home.groupTravel.items?.map((item: any, idx: number) => (
-                                    <div key={idx} className="grid gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Pacote #{idx + 1}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeListItem("groupTravel", idx)}
-                                                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
-                                            >
-                                                Remover
-                                            </button>
-                                        </div>
-                                        <ImagePicker
-                                            label="Imagem"
-                                            value={item.imageUrl ?? ""}
-                                            onChange={(url) => updateListItemField("groupTravel", idx, "imageUrl", url, false)}
-                                        />
-                                        <div className="grid gap-2 md:grid-cols-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Título"
-                                                value={item.title?.[locale] ?? ""}
-                                                onChange={(e) => updateListItemField("groupTravel", idx, "title", e.target.value, true)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm font-semibold dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Duração (ex: 5 days)"
-                                                value={item.duration ?? ""}
-                                                onChange={(e) => updateListItemField("groupTravel", idx, "duration", e.target.value, false)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Localização"
-                                                value={item.location ?? ""}
-                                                onChange={(e) => updateListItemField("groupTravel", idx, "location", e.target.value, false)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Preço (ex: $75)"
-                                                value={item.price ?? ""}
-                                                onChange={(e) => updateListItemField("groupTravel", idx, "price", e.target.value, false)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Link (ex: #)"
-                                                value={item.link ?? ""}
-                                                onChange={(e) => updateListItemField("groupTravel", idx, "link", e.target.value, false)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                        </div>
-                                        <textarea
-                                            placeholder="Descrição"
-                                            value={item.description?.[locale] ?? ""}
-                                            onChange={(e) => updateListItemField("groupTravel", idx, "description", e.target.value, true)}
-                                            rows={2}
-                                            className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                        />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </section>
 
@@ -619,6 +509,13 @@ export default function ContentEditorPage() {
                         <span className="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300">10</span>
                         Home Page - Testemunhos
                     </h2>
+                    <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                        Os depoimentos mostrados no carrossel já não são geridos aqui — passa a ser em{" "}
+                        <a href="/dashboard/testimonials" className="font-semibold text-blue-600 hover:underline dark:text-blue-400">
+                            Conteúdo &gt; Testemunhos
+                        </a>
+                        . Só o texto do cabeçalho da secção é editável aqui.
+                    </p>
                     <div className="grid gap-4 md:grid-cols-2">
                         <div>
                             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Subtítulo</label>
@@ -637,83 +534,6 @@ export default function ContentEditorPage() {
                                 onChange={(e) => handleChange('home', 'testimonials', 'title', e.target.value)}
                                 className="w-full rounded-lg border-gray-300 bg-gray-50 p-2.5 text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
                             />
-                        </div>
-                        <div className="md:col-span-2">
-                            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Depoimentos</label>
-                                <button
-                                    type="button"
-                                    onClick={() => addListItem("testimonials", {
-                                        image: "", name: "", designation: emptyLocalized(), text: emptyLocalized(), rating: 5
-                                    })}
-                                    className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
-                                >
-                                    + Adicionar Depoimento
-                                </button>
-                            </div>
-                            <div className="grid gap-4">
-                                {content.home.testimonials.items?.map((item: any, idx: number) => (
-                                    <div key={idx} className="grid gap-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">Depoimento #{idx + 1}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => removeListItem("testimonials", idx)}
-                                                className="rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
-                                            >
-                                                Remover
-                                            </button>
-                                        </div>
-                                        <ImagePicker
-                                            label="Foto"
-                                            value={item.image ?? ""}
-                                            onChange={(url) => updateListItemField("testimonials", idx, "image", url, false)}
-                                        />
-                                        <div className="grid gap-2 md:grid-cols-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Nome"
-                                                value={item.name ?? ""}
-                                                onChange={(e) => updateListItemField("testimonials", idx, "name", e.target.value, false)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm font-semibold dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                            <input
-                                                type="text"
-                                                placeholder="Designação (ex: Cliente Fidelizado)"
-                                                value={item.designation?.[locale] ?? ""}
-                                                onChange={(e) => updateListItemField("testimonials", idx, "designation", e.target.value, true)}
-                                                className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            />
-                                        </div>
-                                        <textarea
-                                            placeholder="Texto do depoimento"
-                                            value={item.text?.[locale] ?? ""}
-                                            onChange={(e) => updateListItemField("testimonials", idx, "text", e.target.value, true)}
-                                            rows={2}
-                                            className="w-full rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                        />
-                                        <div>
-                                            <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Avaliação (1-5 estrelas)</label>
-                                            <select
-                                                value={item.rating ?? 5}
-                                                onChange={(e) => {
-                                                    const rating = Number(e.target.value);
-                                                    setContent((prev: any) => {
-                                                        const items = [...prev.home.testimonials.items];
-                                                        items[idx] = { ...items[idx], rating };
-                                                        return { ...prev, home: { ...prev.home, testimonials: { ...prev.home.testimonials, items } } };
-                                                    });
-                                                }}
-                                                className="rounded-lg border-gray-300 bg-gray-50 p-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-                                            >
-                                                {[1, 2, 3, 4, 5].map((n) => (
-                                                    <option key={n} value={n}>{n}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </div>
                 </section>

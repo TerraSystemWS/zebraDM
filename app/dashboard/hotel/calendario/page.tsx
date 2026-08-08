@@ -12,11 +12,10 @@ const STATUS_LABELS: Record<string, string> = {
 	AWAITING_CASH: "Aguarda Pagamento",
 	ON_HOLD: "Em Espera",
 	CONFIRMED: "Confirmada",
-	PAID: "Paga",
 	CANCELLED: "Cancelada",
 };
 
-const SETTABLE_STATUSES = ["ON_HOLD", "CONFIRMED", "PAID", "CANCELLED"];
+const SETTABLE_STATUSES = ["ON_HOLD", "CONFIRMED", "CANCELLED"];
 
 const STATUS_COLORS: Record<string, string> = {
 	PENDING_PAYMENT: "bg-yellow-200 text-yellow-900 border-yellow-400",
@@ -24,7 +23,6 @@ const STATUS_COLORS: Record<string, string> = {
 	AWAITING_CASH: "bg-yellow-200 text-yellow-900 border-yellow-400",
 	ON_HOLD: "bg-orange-200 text-orange-900 border-orange-400",
 	CONFIRMED: "bg-green-200 text-green-900 border-green-400",
-	PAID: "bg-green-200 text-green-900 border-green-400",
 	CANCELLED: "bg-red-200 text-red-900 border-red-400 line-through opacity-60",
 };
 

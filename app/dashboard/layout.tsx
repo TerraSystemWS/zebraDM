@@ -11,17 +11,22 @@ import {
 	CalendarDays,
 	Compass,
 	FileEdit,
+	Briefcase,
 	FolderOpen,
+	Handshake,
 	Image as ImageIcon,
 	LayoutDashboard,
 	LogOut,
+	Mail,
 	MapPin,
 	Menu,
 	Newspaper,
+	Quote,
 	Settings,
 	Settings2,
 	ShoppingBag,
 	Sparkles,
+	UserCog,
 	Users,
 	X,
 	type LucideIcon,
@@ -114,7 +119,7 @@ export default function DashboardLayout({
 
 			{/* Sidebar */}
 			<aside
-				className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-white shadow-md transition-transform duration-200 ease-in-out dark:bg-gray-800 md:static md:z-auto md:flex md:translate-x-0 ${
+				className={`no-print fixed inset-y-0 left-0 z-40 flex h-screen w-64 flex-col bg-white shadow-md transition-transform duration-200 ease-in-out dark:bg-gray-800 md:static md:z-auto md:flex md:translate-x-0 ${
 					sidebarOpen ? "translate-x-0" : "-translate-x-full"
 				}`}
 			>
@@ -148,7 +153,7 @@ export default function DashboardLayout({
 					<NavGroup
 						title="Excursões"
 						items={[
-							{ label: "Gerenciar Excursões", href: "/dashboard/excursoes", icon: Compass },
+							{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
 							{ label: "Reservas (Excursões)", href: "/dashboard/bookings", icon: CalendarCheck },
 						]}
 					/>
@@ -168,6 +173,7 @@ export default function DashboardLayout({
 						items={[
 							{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },
 							{ label: "Galeria", href: "/dashboard/galeria", icon: ImageIcon },
+							{ label: "Testemunhos", href: "/dashboard/testimonials", icon: Quote },
 						]}
 					/>
 
@@ -190,6 +196,10 @@ export default function DashboardLayout({
 							title="Administração"
 							items={[
 								{ label: "Usuários", href: "/dashboard/users", icon: Users },
+								{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail },
+								{ label: "Carreiras", href: "/dashboard/carreiras", icon: Briefcase },
+								{ label: "Equipa", href: "/dashboard/equipa", icon: UserCog },
+								{ label: "Patrocinadores", href: "/dashboard/sponsors", icon: Handshake },
 								{ label: "Configurações", href: "/dashboard/settings", icon: Settings },
 								{ label: "Editor de Conteúdo", href: "/dashboard/content", icon: FileEdit },
 							]}
@@ -201,7 +211,7 @@ export default function DashboardLayout({
 			{/* Main Content */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				{/* Topbar */}
-				<header className="flex items-center justify-between bg-white px-6 py-4 shadow dark:bg-gray-800">
+				<header className="no-print flex items-center justify-between bg-white px-6 py-4 shadow dark:bg-gray-800">
 					<button
 						className="text-gray-500 focus:outline-none md:hidden"
 						onClick={() => setSidebarOpen(true)}

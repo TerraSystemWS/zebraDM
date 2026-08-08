@@ -1,23 +1,51 @@
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Booking, bookingsService } from "@/services/bookingsService";
+import { Excursao, excursoesService } from "@/services/excursoesService";
+import { Printer, ChevronDown, ChevronRight } from "lucide-react";
 import Swal from "sweetalert2";
+
+interface ExcursionGroup {
+    slug: string;
+    title: string;
+    price: number;
+    groupTravelStatus: Excursao["groupTravelStatus"];
+    groupTravelConfirmedDate: string | null;
+    bookings: Booking[];
+}
+
+const GROUP_STATUS_LABEL: Record<Excursao["groupTravelStatus"], string> = {
+    NONE: "Sem reservas",
+    OPEN: "Aberta",
+    CONFIRMED: "Confirmada",
+};
+
+const GROUP_STATUS_CLASS: Record<Excursao["groupTravelStatus"], string> = {
+    NONE: "bg-gray-200 text-gray-700",
+    OPEN: "bg-yellow-200 text-yellow-900",
+    CONFIRMED: "bg-green-200 text-green-900",
+};
 
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
+    const [excursions, setExcursions] = useState<Excursao[]>([]);
     const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        loadBookings();
+        loadAll();
     }, []);
 
-    const loadBookings = async () => {
+    const loadAll = async () => {
         setLoading(true);
         try {
-            const data = await bookingsService.getAll();
-            setBookings(data);
+            const [bookingsData, excursoesData] = await Promise.all([
+                bookingsService.getAll(),
+                excursoesService.getAll(true),
+            ]);
+            setBookings(bookingsData);
+            setExcursions(excursoesData);
         } catch (error) {
             console.error("Error loading bookings:", error);
             Swal.fire("Erro", "Erro ao carregar reservas", "error");
@@ -26,29 +54,104 @@ export default function BookingsPage() {
         }
     };
 
-    const handleStatusChange = async (id: number, currentStatus: string) => {
+    const groups = useMemo<ExcursionGroup[]>(() => {
+        const bySlug = new Map<string, Booking[]>();
+        for (const booking of bookings) {
+            if (booking.type !== "EXCURSION" || !booking.excursionSlug) continue;
+            const list = bySlug.get(booking.excursionSlug) ?? [];
+            list.push(booking);
+            bySlug.set(booking.excursionSlug, list);
+        }
+        return Array.from(bySlug.entries()).map(([slug, list]) => {
+            const excursion = excursions.find((e) => e.slug === slug);
+            return {
+                slug,
+                title: excursion?.title ?? list[0].tour,
+                price: excursion?.price ?? 0,
+                groupTravelStatus: excursion?.groupTravelStatus ?? "OPEN",
+                groupTravelConfirmedDate: excursion?.groupTravelConfirmedDate ?? null,
+                bookings: list,
+            };
+        });
+    }, [bookings, excursions]);
+
+    const toggleExpanded = (slug: string) => {
+        setExpanded((prev) => ({ ...prev, [slug]: !prev[slug] }));
+    };
+
+    const handleConfirmDate = async (group: ExcursionGroup) => {
+        const { value: confirmedDate } = await Swal.fire({
+            title: `Confirmar data final — ${group.title}`,
+            input: "text",
+            inputAttributes: { type: "date" },
+            inputValue: group.groupTravelConfirmedDate ?? "",
+            showCancelButton: true,
+            confirmButtonText: "Confirmar",
+            cancelButtonText: "Cancelar",
+        });
+        if (!confirmedDate) return;
+        try {
+            await excursoesService.confirmGroupTravel(group.slug, confirmedDate);
+            Swal.fire("Confirmado!", "A excursão foi confirmada e já aparece na home.", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error confirming group travel:", error);
+            Swal.fire("Erro", "Não foi possível confirmar a data.", "error");
+        }
+    };
+
+    const handleReopen = async (group: ExcursionGroup) => {
+        const result = await Swal.fire({
+            title: "Reabrir excursão?",
+            text: "A excursão deixa de aparecer na secção de Grupo Travel da home.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Sim, reabrir",
+            cancelButtonText: "Cancelar",
+        });
+        if (!result.isConfirmed) return;
+        try {
+            await excursoesService.reopenGroupTravel(group.slug);
+            Swal.fire("Reaberta!", "", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error reopening group travel:", error);
+            Swal.fire("Erro", "Não foi possível reabrir.", "error");
+        }
+    };
+
+    const handleStatusChange = async (booking: Booking) => {
         const { value: status } = await Swal.fire({
-            title: 'Alterar Status',
-            input: 'select',
+            title: "Alterar Status",
+            input: "select",
             inputOptions: {
-                'Pending': 'Pendente',
-                'Confirmed': 'Confirmado',
-                'Cancelled': 'Cancelado'
+                Pending: "Pendente",
+                Confirmed: "Confirmado",
+                Cancelled: "Cancelado",
             },
-            inputPlaceholder: 'Selecione um status',
-            inputValue: currentStatus,
+            inputPlaceholder: "Selecione um status",
+            inputValue: booking.status,
             showCancelButton: true,
         });
+        if (!status) return;
+        try {
+            await bookingsService.updateStatus(booking.id, status);
+            Swal.fire("Atualizado!", `Status alterado para ${status}.`, "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error updating booking:", error);
+            Swal.fire("Erro", "Erro ao atualizar reserva", "error");
+        }
+    };
 
-        if (status) {
-            try {
-                await bookingsService.updateStatus(id, status);
-                setBookings(bookings.map(b => b.id === id ? { ...b, status: status as any } : b));
-                Swal.fire("Atualizado!", `Status alterado para ${status}.`, "success");
-            } catch (error) {
-                console.error("Error updating booking:", error);
-                Swal.fire("Erro", "Erro ao atualizar reserva", "error");
-            }
+    const handleTogglePayment = async (booking: Booking) => {
+        const newStatus = booking.paymentStatus === "PAID" ? "UNPAID" : "PAID";
+        try {
+            await bookingsService.updatePaymentStatus(booking.id, newStatus);
+            loadAll();
+        } catch (error) {
+            console.error("Error updating payment status:", error);
+            Swal.fire("Erro", "Erro ao atualizar estado de pagamento", "error");
         }
     };
 
@@ -58,89 +161,124 @@ export default function BookingsPage() {
 
     return (
         <div className="container mx-auto p-6">
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    Gestão de Excursões (Reservas)
+                    Reservas (Excursões)
                 </h1>
             </div>
 
-            <div className="overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
-                <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                ID
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Usuário
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Tour
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Data
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Valor
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Status
-                            </th>
-                            <th className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
-                                Ações
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {bookings.map((booking) => (
-                            <tr key={booking.id}>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <p className="whitespace-no-wrap text-gray-900 dark:text-white">
-                                        #{booking.id}
+            {groups.length === 0 && (
+                <div className="rounded-lg bg-white p-6 text-gray-500 shadow dark:bg-gray-800 dark:text-gray-400">
+                    Ainda não há reservas de excursões.
+                </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+                {groups.map((group) => (
+                    <div key={group.slug} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+                        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                            <button
+                                className="flex items-center gap-2 text-left"
+                                onClick={() => toggleExpanded(group.slug)}
+                            >
+                                {expanded[group.slug] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                <div>
+                                    <p className="font-semibold text-gray-800 dark:text-white">{group.title}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {group.bookings.length} reserva(s) · €{group.price}
                                     </p>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <p className="whitespace-no-wrap text-gray-900 dark:text-white">
-                                        {booking.user}
-                                    </p>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <p className="whitespace-no-wrap text-gray-900 dark:text-white">
-                                        {booking.tour}
-                                    </p>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <p className="whitespace-no-wrap text-gray-900 dark:text-white">
-                                        {booking.date}
-                                    </p>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <p className="whitespace-no-wrap text-gray-900 dark:text-white">
-                                        ${booking.amount}
-                                    </p>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
-                                    <span className={`relative inline-block px-3 py-1 font-semibold leading-tight
-                                        ${booking.status === 'Confirmed' ? 'text-green-900' :
-                                            booking.status === 'Pending' ? 'text-yellow-900' : 'text-red-900'}`}>
-                                        <span aria-hidden className={`absolute inset-0 opacity-50 rounded-full
-                                            ${booking.status === 'Confirmed' ? 'bg-green-200' :
-                                                booking.status === 'Pending' ? 'bg-yellow-200' : 'bg-red-200'}`}></span>
-                                        <span className="relative">{booking.status}</span>
-                                    </span>
-                                </td>
-                                <td className="border-b border-gray-200 bg-white px-5 py-5 text-sm dark:border-gray-700 dark:bg-gray-800">
+                                </div>
+                            </button>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.groupTravelStatus]}`}>
+                                    {GROUP_STATUS_LABEL[group.groupTravelStatus]}
+                                    {group.groupTravelConfirmedDate ? ` — ${group.groupTravelConfirmedDate}` : ""}
+                                </span>
+                                {group.groupTravelStatus === "CONFIRMED" ? (
                                     <button
-                                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                                        onClick={() => handleStatusChange(booking.id, booking.status)}
+                                        onClick={() => handleReopen(group)}
+                                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
                                     >
-                                        Alterar Status
+                                        Reabrir
                                     </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                ) : (
+                                    <button
+                                        onClick={() => handleConfirmDate(group)}
+                                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+                                    >
+                                        Confirmar Data
+                                    </button>
+                                )}
+                                <a
+                                    href={`/dashboard/bookings/print/${group.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
+                                >
+                                    <Printer size={15} /> Imprimir
+                                </a>
+                            </div>
+                        </div>
+
+                        {expanded[group.slug] && (
+                            <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-700">
+                                <table className="min-w-full leading-normal">
+                                    <thead>
+                                        <tr>
+                                            {["Cliente", "Email", "Data preferida", "Status", "Pagamento", "Valor"].map((h) => (
+                                                <th
+                                                    key={h}
+                                                    className="border-b-2 border-gray-200 bg-gray-50 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700/50 dark:text-gray-300"
+                                                >
+                                                    {h}
+                                                </th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {group.bookings.map((booking) => (
+                                            <tr key={booking.id}>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:text-white">
+                                                    {booking.user}
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                    {booking.userEmail ?? "—"}
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-900 dark:border-gray-700 dark:text-white">
+                                                    {booking.date}
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm">
+                                                    <button
+                                                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                                                        onClick={() => handleStatusChange(booking)}
+                                                    >
+                                                        {booking.status}
+                                                    </button>
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm">
+                                                    <button
+                                                        onClick={() => handleTogglePayment(booking)}
+                                                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                                            booking.paymentStatus === "PAID"
+                                                                ? "bg-green-200 text-green-900"
+                                                                : "bg-red-200 text-red-900"
+                                                        }`}
+                                                    >
+                                                        {booking.paymentStatus === "PAID" ? "Paga" : "Não paga"}
+                                                    </button>
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                                                    €{booking.amount}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     );

@@ -8,7 +8,7 @@ import { getUser } from "@/lib/api";
 import { roomLabel } from "@/lib/roomLabel";
 
 const NOT_YET_PAID_STATUSES = ["PENDING_PAYMENT", "AWAITING_TRANSFER", "AWAITING_CASH", "CANCELLED", "FAILED"];
-const CHECK_IN_ELIGIBLE_STATUSES = ["CONFIRMED", "PAID"];
+const CHECK_IN_ELIGIBLE_STATUSES = ["CONFIRMED"];
 
 const STATUS_LABELS: Record<string, string> = {
 	PENDING_PAYMENT: "Pendente",
@@ -16,7 +16,6 @@ const STATUS_LABELS: Record<string, string> = {
 	AWAITING_CASH: "Aguarda Pagamento",
 	ON_HOLD: "Em Espera",
 	CONFIRMED: "Confirmada",
-	PAID: "Paga",
 	CANCELLED: "Cancelada",
 };
 
@@ -26,7 +25,6 @@ const STATUS_COLORS: Record<string, string> = {
 	AWAITING_CASH: "bg-yellow-200 text-yellow-900",
 	ON_HOLD: "bg-orange-200 text-orange-900",
 	CONFIRMED: "bg-green-200 text-green-900",
-	PAID: "bg-green-200 text-green-900",
 	CANCELLED: "bg-red-200 text-red-900",
 };
 
@@ -116,7 +114,6 @@ export default function HotelReservasPage() {
 			inputOptions: {
 				ON_HOLD: "Em Espera",
 				CONFIRMED: "Confirmada",
-				PAID: "Paga",
 				CANCELLED: "Cancelada",
 			},
 			inputValue: reservation.status,
@@ -150,7 +147,8 @@ export default function HotelReservasPage() {
 		}
 	};
 
-	const canDelete = (reservation: Reservation) => isAdmin || NOT_YET_PAID_STATUSES.includes(reservation.status);
+	const canDelete = (reservation: Reservation) =>
+		reservation.status !== "CONFIRMED" && (isAdmin || NOT_YET_PAID_STATUSES.includes(reservation.status));
 
 	const doDelete = async (reservation: Reservation) => {
 		const result = await Swal.fire({
@@ -343,7 +341,6 @@ export default function HotelReservasPage() {
 							<select className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
 								<option value="CONFIRMED">Confirmada</option>
 								<option value="ON_HOLD">Em Espera</option>
-								<option value="PAID">Paga</option>
 							</select>
 							<p className="mt-1 text-xs text-gray-500">Só o admin pode colocar uma reserva &quot;Em Espera&quot;.</p>
 						</div>
