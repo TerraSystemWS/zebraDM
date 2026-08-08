@@ -25,11 +25,19 @@ const FULFILLMENT_CLASS: Record<Order["fulfillmentStatus"], string> = {
 	DELIVERED: "bg-green-200 text-green-900",
 };
 
+// Só os estados "em curso" aparecem no filtro da lista principal — encomendas
+// entregues saem dela por completo (ver secção "Concluídas" mais abaixo).
+const ACTIVE_FULFILLMENT_LABELS: Record<string, string> = {
+	PENDING_SHIPMENT: "Por enviar",
+	SHIPPED: "Enviada",
+};
+
 export default function OrdersPage() {
 	const [orders, setOrders] = useState<Order[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [query, setQuery] = useState("");
 	const [fulfillmentFilter, setFulfillmentFilter] = useState("");
+	const [showDelivered, setShowDelivered] = useState(false);
 
 	useEffect(() => {
 		load();
@@ -47,14 +55,26 @@ export default function OrdersPage() {
 		}
 	};
 
+	const matchesQuery = (o: Order, q: string) =>
+		!q || o.userName.toLowerCase().includes(q) || (o.userEmail ?? "").toLowerCase().includes(q);
+
+	// Encomendas entregues já não têm relação com o fluxo de trabalho atual —
+	// saem da lista principal e só aparecem numa secção à parte, escondida por
+	// padrão (mesmo padrão das "Reservas Concluídas" do Hotel).
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		return orders.filter((o) => {
-			if (q && !o.userName.toLowerCase().includes(q) && !(o.userEmail ?? "").toLowerCase().includes(q)) return false;
+			if (o.fulfillmentStatus === "DELIVERED") return false;
+			if (!matchesQuery(o, q)) return false;
 			if (fulfillmentFilter && o.fulfillmentStatus !== fulfillmentFilter) return false;
 			return true;
 		});
 	}, [orders, query, fulfillmentFilter]);
+
+	const deliveredOrders = useMemo(() => {
+		const q = query.trim().toLowerCase();
+		return orders.filter((o) => o.fulfillmentStatus === "DELIVERED" && matchesQuery(o, q));
+	}, [orders, query]);
 
 	const handleChangeFulfillment = async (order: Order) => {
 		const { value: fulfillmentStatus } = await Swal.fire({
@@ -107,7 +127,7 @@ export default function OrdersPage() {
 					onChange={(e) => setFulfillmentFilter(e.target.value)}
 				>
 					<option value="">Todos os estados de envio</option>
-					{Object.entries(FULFILLMENT_LABELS).map(([value, label]) => (
+					{Object.entries(ACTIVE_FULFILLMENT_LABELS).map(([value, label]) => (
 						<option key={value} value={value}>{label}</option>
 					))}
 				</select>
@@ -162,6 +182,62 @@ export default function OrdersPage() {
 					</tbody>
 				</table>
 			</div>
+
+			<div className="mt-6">
+				<button
+					className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+					onClick={() => setShowDelivered((v) => !v)}
+				>
+					{showDelivered ? "Ocultar" : "Mostrar"} encomendas entregues ({deliveredOrders.length})
+				</button>
+			</div>
+
+			{showDelivered && (
+				<div className="mt-4 overflow-x-auto rounded-lg bg-white shadow dark:bg-gray-800">
+					<div className="border-b border-gray-100 px-5 py-3 text-sm font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300">
+						Encomendas Entregues
+					</div>
+					<table className="min-w-full leading-normal">
+						<thead>
+							<tr>
+								{["ID", "Cliente", "Itens", "Valor", "Pagamento", "Data"].map((h) => (
+									<th key={h} className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
+										{h}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{deliveredOrders.map((order) => (
+								<tr key={order.id}>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">#{order.id}</td>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+										<div>{order.userName}</div>
+										<div className="text-xs text-gray-500 dark:text-gray-400">{order.userEmail ?? "—"}</div>
+									</td>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+										{order.items.map((item, idx) => (
+											<div key={idx}>{item.quantity}× {item.name}</div>
+										))}
+									</td>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">${order.totalAmount}</td>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+										{PAYMENT_STATUS_LABELS[order.status] ?? order.status}
+									</td>
+									<td className="border-b border-gray-200 bg-white px-5 py-4 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+										{new Date(order.createdAt).toLocaleDateString()}
+									</td>
+								</tr>
+							))}
+							{deliveredOrders.length === 0 && (
+								<tr>
+									<td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-500 dark:bg-gray-800">Sem encomendas entregues.</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
+				</div>
+			)}
 		</div>
 	);
 }

@@ -39,13 +39,22 @@ interface NavLinkItem {
 	icon: LucideIcon;
 }
 
-function isActive(pathname: string, href: string): boolean {
+function matches(pathname: string, href: string): boolean {
 	return pathname === href || pathname.startsWith(href + "/");
 }
 
-function NavLink({ label, href, icon: Icon }: NavLinkItem) {
-	const pathname = usePathname();
-	const active = isActive(pathname, href);
+// Entre todos os hrefs do menu que "batem" com o pathname atual (por prefixo),
+// só o mais específico (mais longo) deve ficar ativo — caso contrário, um item
+// pai (ex: "/dashboard/loja") fica sempre destacado junto com o filho ativo
+// (ex: "/dashboard/loja/encomendas"), e "/dashboard" (Visão Geral) ficaria
+// destacado em todas as páginas do painel, já que é prefixo de todas.
+function findActiveHref(pathname: string, allHrefs: string[]): string | null {
+	const candidates = allHrefs.filter((href) => matches(pathname, href));
+	if (candidates.length === 0) return null;
+	return candidates.reduce((longest, href) => (href.length > longest.length ? href : longest));
+}
+
+function NavLink({ label, href, icon: Icon, active }: NavLinkItem & { active: boolean }) {
 	return (
 		<Link
 			href={href}
@@ -61,7 +70,7 @@ function NavLink({ label, href, icon: Icon }: NavLinkItem) {
 	);
 }
 
-function NavGroup({ title, items }: { title: string; items: NavLinkItem[] }) {
+function NavGroup({ title, items, activeHref }: { title: string; items: NavLinkItem[]; activeHref: string | null }) {
 	return (
 		<div className="mb-1">
 			<p className="px-6 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
@@ -69,7 +78,7 @@ function NavGroup({ title, items }: { title: string; items: NavLinkItem[] }) {
 			</p>
 			<div className="flex flex-col gap-0.5">
 				{items.map((item) => (
-					<NavLink key={item.href} {...item} />
+					<NavLink key={item.href} {...item} active={item.href === activeHref} />
 				))}
 			</div>
 		</div>
@@ -103,6 +112,49 @@ export default function DashboardLayout({
 		logout();
 		router.push("/login");
 	};
+
+	const excursoesItems: NavLinkItem[] = [
+		{ label: "Reservas (Excursões)", href: "/dashboard/bookings", icon: CalendarCheck },
+		{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
+	];
+	const hotelItems: NavLinkItem[] = [
+		{ label: "Calendário", href: "/dashboard/hotel/calendario", icon: CalendarDays },
+		{ label: "Reservas de Quarto", href: "/dashboard/hotel/reservas", icon: BedDouble },
+		{ label: "Editar/Configurar", href: "/dashboard/hotel/configurar", icon: Settings2 },
+		{ label: "Comodidades", href: "/dashboard/hotel/comodidades", icon: Sparkles },
+	];
+	const conteudoItems: NavLinkItem[] = [
+		{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },
+		{ label: "Galeria", href: "/dashboard/galeria", icon: ImageIcon },
+		{ label: "Testemunhos", href: "/dashboard/testimonials", icon: Quote },
+	];
+	const lojaItems: NavLinkItem[] = [
+		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
+		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
+	];
+	const ficheirosItems: NavLinkItem[] = [
+		{ label: "Media Library", href: "/dashboard/media", icon: FolderOpen },
+	];
+	const adminItems: NavLinkItem[] = [
+		{ label: "Usuários", href: "/dashboard/users", icon: Users },
+		{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail },
+		{ label: "Carreiras", href: "/dashboard/carreiras", icon: Briefcase },
+		{ label: "Equipa", href: "/dashboard/equipa", icon: UserCog },
+		{ label: "Patrocinadores", href: "/dashboard/sponsors", icon: Handshake },
+		{ label: "Configurações", href: "/dashboard/settings", icon: Settings },
+		{ label: "Editor de Conteúdo", href: "/dashboard/content", icon: FileEdit },
+	];
+
+	const activeHref = findActiveHref(pathname, [
+		"/dashboard",
+		"/dashboard/destinos",
+		...excursoesItems.map((i) => i.href),
+		...hotelItems.map((i) => i.href),
+		...conteudoItems.map((i) => i.href),
+		...lojaItems.map((i) => i.href),
+		...ficheirosItems.map((i) => i.href),
+		...(isAdmin ? adminItems.map((i) => i.href) : []),
+	]);
 
 	if (isLoading) {
 		return <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-white">Verificando autenticação...</div>;
@@ -147,66 +199,21 @@ export default function DashboardLayout({
 
 				<nav className="flex-1 overflow-y-auto pb-6">
 					<div className="flex flex-col gap-0.5">
-						<NavLink label="Visão Geral" href="/dashboard" icon={LayoutDashboard} />
-						<NavLink label="Destinos" href="/dashboard/destinos" icon={MapPin} />
+						<NavLink label="Visão Geral" href="/dashboard" icon={LayoutDashboard} active={activeHref === "/dashboard"} />
+						<NavLink label="Destinos" href="/dashboard/destinos" icon={MapPin} active={activeHref === "/dashboard/destinos"} />
 					</div>
 
-					<NavGroup
-						title="Excursões"
-						items={[
-							{ label: "Reservas (Excursões)", href: "/dashboard/bookings", icon: CalendarCheck },
-							{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
-						]}
-					/>
+					<NavGroup title="Excursões" items={excursoesItems} activeHref={activeHref} />
 
-					<NavGroup
-						title="Hotel"
-						items={[
-							{ label: "Calendário", href: "/dashboard/hotel/calendario", icon: CalendarDays },
-							{ label: "Reservas de Quarto", href: "/dashboard/hotel/reservas", icon: BedDouble },
-							{ label: "Editar/Configurar", href: "/dashboard/hotel/configurar", icon: Settings2 },
-							{ label: "Comodidades", href: "/dashboard/hotel/comodidades", icon: Sparkles },
-						]}
-					/>
+					<NavGroup title="Hotel" items={hotelItems} activeHref={activeHref} />
 
-					<NavGroup
-						title="Conteúdo"
-						items={[
-							{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },
-							{ label: "Galeria", href: "/dashboard/galeria", icon: ImageIcon },
-							{ label: "Testemunhos", href: "/dashboard/testimonials", icon: Quote },
-						]}
-					/>
+					<NavGroup title="Conteúdo" items={conteudoItems} activeHref={activeHref} />
 
-					<NavGroup
-						title="Loja"
-						items={[
-							{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
-							{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
-						]}
-					/>
+					<NavGroup title="Loja" items={lojaItems} activeHref={activeHref} />
 
-					<NavGroup
-						title="Ficheiros"
-						items={[
-							{ label: "Media Library", href: "/dashboard/media", icon: FolderOpen },
-						]}
-					/>
+					<NavGroup title="Ficheiros" items={ficheirosItems} activeHref={activeHref} />
 
-					{isAdmin && (
-						<NavGroup
-							title="Administração"
-							items={[
-								{ label: "Usuários", href: "/dashboard/users", icon: Users },
-								{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail },
-								{ label: "Carreiras", href: "/dashboard/carreiras", icon: Briefcase },
-								{ label: "Equipa", href: "/dashboard/equipa", icon: UserCog },
-								{ label: "Patrocinadores", href: "/dashboard/sponsors", icon: Handshake },
-								{ label: "Configurações", href: "/dashboard/settings", icon: Settings },
-								{ label: "Editor de Conteúdo", href: "/dashboard/content", icon: FileEdit },
-							]}
-						/>
-					)}
+					{isAdmin && <NavGroup title="Administração" items={adminItems} activeHref={activeHref} />}
 				</nav>
 			</aside>
 

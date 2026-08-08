@@ -19,19 +19,29 @@ const GROUP_STATUS_LABEL: Record<Excursao["groupTravelStatus"], string> = {
     NONE: "Sem reservas",
     OPEN: "Aberta",
     CONFIRMED: "Confirmada",
+    COMPLETED: "Terminada",
 };
 
 const GROUP_STATUS_CLASS: Record<Excursao["groupTravelStatus"], string> = {
     NONE: "bg-gray-200 text-gray-700",
     OPEN: "bg-yellow-200 text-yellow-900",
     CONFIRMED: "bg-green-200 text-green-900",
+    COMPLETED: "bg-blue-200 text-blue-900",
 };
+
+function isPastDate(date: string | null): boolean {
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(`${date}T00:00:00`) < today;
+}
 
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [excursions, setExcursions] = useState<Excursao[]>([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [showCompleted, setShowCompleted] = useState(false);
 
     useEffect(() => {
         loadAll();
@@ -77,6 +87,18 @@ export default function BookingsPage() {
             })
             .filter((group): group is ExcursionGroup => group !== null);
     }, [bookings, excursions]);
+
+    // Excursões terminadas (grupo travel concluído) saem da lista principal e só
+    // aparecem numa secção à parte, escondida por padrão — mesmo padrão das
+    // "Reservas Concluídas" do Hotel (ver dashboard/hotel/reservas/page.tsx).
+    const activeGroups = useMemo(
+        () => groups.filter((g) => g.groupTravelStatus !== "COMPLETED"),
+        [groups]
+    );
+    const completedGroups = useMemo(
+        () => groups.filter((g) => g.groupTravelStatus === "COMPLETED"),
+        [groups]
+    );
 
     const toggleExpanded = (slug: string) => {
         setExpanded((prev) => ({ ...prev, [slug]: !prev[slug] }));
@@ -132,6 +154,26 @@ export default function BookingsPage() {
         }
     };
 
+    const handleComplete = async (group: ExcursionGroup) => {
+        const result = await Swal.fire({
+            title: "Marcar excursão como terminada?",
+            text: "A excursão passa para a secção de Concluídas e deixa de poder ser editada aqui.",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Sim, terminada",
+            cancelButtonText: "Cancelar",
+        });
+        if (!result.isConfirmed) return;
+        try {
+            await excursoesService.completeGroupTravel(group.slug);
+            Swal.fire("Concluída!", "", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error completing group travel:", error);
+            Swal.fire("Erro", "Não foi possível marcar como terminada.", "error");
+        }
+    };
+
     const handleStatusChange = async (booking: Booking) => {
         const { value: status } = await Swal.fire({
             title: "Alterar Status",
@@ -168,14 +210,14 @@ export default function BookingsPage() {
                 </h1>
             </div>
 
-            {groups.length === 0 && (
+            {activeGroups.length === 0 && (
                 <div className="rounded-lg bg-white p-6 text-gray-500 shadow dark:bg-gray-800 dark:text-gray-400">
                     Ainda não há reservas de excursões.
                 </div>
             )}
 
             <div className="flex flex-col gap-4">
-                {groups.map((group) => (
+                {activeGroups.map((group) => (
                     <div key={group.slug} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
                         <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                             <button
@@ -197,12 +239,22 @@ export default function BookingsPage() {
                                     {group.groupTravelConfirmedDate ? ` — ${group.groupTravelConfirmedDate}` : ""}
                                 </span>
                                 {group.groupTravelStatus === "CONFIRMED" ? (
-                                    <button
-                                        onClick={() => handleReopen(group)}
-                                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
-                                    >
-                                        Reabrir
-                                    </button>
+                                    <>
+                                        {isPastDate(group.groupTravelConfirmedDate) && (
+                                            <button
+                                                onClick={() => handleComplete(group)}
+                                                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+                                            >
+                                                Terminada
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => handleReopen(group)}
+                                            className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
+                                        >
+                                            Reabrir
+                                        </button>
+                                    </>
                                 ) : (
                                     <button
                                         onClick={() => handleConfirmDate(group)}
@@ -269,6 +321,51 @@ export default function BookingsPage() {
                     </div>
                 ))}
             </div>
+
+            <div className="mt-6">
+                <button
+                    className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                    onClick={() => setShowCompleted((v) => !v)}
+                >
+                    {showCompleted ? "Ocultar" : "Mostrar"} excursões concluídas ({completedGroups.length})
+                </button>
+            </div>
+
+            {showCompleted && (
+                <div className="mt-4 flex flex-col gap-3">
+                    {completedGroups.length === 0 && (
+                        <div className="rounded-lg bg-white p-6 text-gray-500 shadow dark:bg-gray-800 dark:text-gray-400">
+                            Ainda não há excursões concluídas.
+                        </div>
+                    )}
+                    {completedGroups.map((group) => (
+                        <div key={group.slug} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+                            <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                                <div>
+                                    <p className="font-semibold text-gray-800 dark:text-white">{group.title}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {group.bookings.length} reserva(s) · €{group.price}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.groupTravelStatus]}`}>
+                                        {GROUP_STATUS_LABEL[group.groupTravelStatus]}
+                                        {group.groupTravelConfirmedDate ? ` — ${group.groupTravelConfirmedDate}` : ""}
+                                    </span>
+                                    <a
+                                        href={`/dashboard/bookings/print/${group.slug}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
+                                    >
+                                        <Printer size={15} /> Imprimir
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
