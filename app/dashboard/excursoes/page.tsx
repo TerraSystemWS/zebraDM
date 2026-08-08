@@ -97,8 +97,6 @@ export default function ExcursoesPage() {
 			description: form.description,
 			categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
 			status: editing ? editing.status : "ACTIVE",
-			groupTravelStatus: editing ? editing.groupTravelStatus : "NONE",
-			groupTravelConfirmedDate: editing ? editing.groupTravelConfirmedDate : null,
 		};
 		try {
 			if (editing) {

@@ -2,28 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Booking, bookingsService } from "@/services/bookingsService";
-import { Excursao, excursoesService } from "@/services/excursoesService";
+import { ExcursionGroup, excursionGroupsService } from "@/services/excursionGroupsService";
 import { Printer, ChevronDown, ChevronRight } from "lucide-react";
 import Swal from "sweetalert2";
 
-interface ExcursionGroup {
-    slug: string;
-    title: string;
-    price: number;
-    groupTravelStatus: Excursao["groupTravelStatus"];
-    groupTravelConfirmedDate: string | null;
+interface GroupWithBookings extends ExcursionGroup {
     bookings: Booking[];
 }
 
-const GROUP_STATUS_LABEL: Record<Excursao["groupTravelStatus"], string> = {
-    NONE: "Sem reservas",
+const GROUP_STATUS_LABEL: Record<ExcursionGroup["status"], string> = {
     OPEN: "Aberta",
     CONFIRMED: "Confirmada",
     COMPLETED: "Terminada",
 };
 
-const GROUP_STATUS_CLASS: Record<Excursao["groupTravelStatus"], string> = {
-    NONE: "bg-gray-200 text-gray-700",
+const GROUP_STATUS_CLASS: Record<ExcursionGroup["status"], string> = {
     OPEN: "bg-yellow-200 text-yellow-900",
     CONFIRMED: "bg-green-200 text-green-900",
     COMPLETED: "bg-blue-200 text-blue-900",
@@ -38,9 +31,9 @@ function isPastDate(date: string | null): boolean {
 
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
-    const [excursions, setExcursions] = useState<Excursao[]>([]);
+    const [excursionGroups, setExcursionGroups] = useState<ExcursionGroup[]>([]);
     const [loading, setLoading] = useState(true);
-    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
     const [showCompleted, setShowCompleted] = useState(false);
 
     useEffect(() => {
@@ -50,12 +43,12 @@ export default function BookingsPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [bookingsData, excursoesData] = await Promise.all([
+            const [bookingsData, groupsData] = await Promise.all([
                 bookingsService.getAll(),
-                excursoesService.getAll(true),
+                excursionGroupsService.getAll(),
             ]);
             setBookings(bookingsData);
-            setExcursions(excursoesData);
+            setExcursionGroups(groupsData);
         } catch (error) {
             console.error("Error loading bookings:", error);
             Swal.fire("Erro", "Erro ao carregar reservas", "error");
@@ -64,52 +57,46 @@ export default function BookingsPage() {
         }
     };
 
-    const groups = useMemo<ExcursionGroup[]>(() => {
-        const bySlug = new Map<string, Booking[]>();
+    // Uma excursão pode ter mais do que um grupo de viagem ao longo do tempo —
+    // depois de um grupo ser confirmado, a próxima reserva abre um novo em vez
+    // de se juntar ao já confirmado (ver BookingController.create no backend).
+    // Por isso agrupamos por excursionGroupId, não por excursionSlug.
+    const groups = useMemo<GroupWithBookings[]>(() => {
+        const byGroupId = new Map<number, Booking[]>();
         for (const booking of bookings) {
-            if (booking.type !== "EXCURSION" || !booking.excursionSlug) continue;
-            const list = bySlug.get(booking.excursionSlug) ?? [];
+            if (booking.type !== "EXCURSION" || booking.excursionGroupId == null) continue;
+            const list = byGroupId.get(booking.excursionGroupId) ?? [];
             list.push(booking);
-            bySlug.set(booking.excursionSlug, list);
+            byGroupId.set(booking.excursionGroupId, list);
         }
-        return Array.from(bySlug.entries())
-            .map(([slug, list]) => {
-                const excursion = excursions.find((e) => e.slug === slug);
-                if (!excursion) return null;
-                return {
-                    slug,
-                    title: excursion.title,
-                    price: excursion.price,
-                    groupTravelStatus: excursion.groupTravelStatus,
-                    groupTravelConfirmedDate: excursion.groupTravelConfirmedDate,
-                    bookings: list,
-                };
-            })
-            .filter((group): group is ExcursionGroup => group !== null);
-    }, [bookings, excursions]);
+        return excursionGroups.map((group) => ({
+            ...group,
+            bookings: byGroupId.get(group.id) ?? [],
+        }));
+    }, [bookings, excursionGroups]);
 
-    // Excursões terminadas (grupo travel concluído) saem da lista principal e só
-    // aparecem numa secção à parte, escondida por padrão — mesmo padrão das
-    // "Reservas Concluídas" do Hotel (ver dashboard/hotel/reservas/page.tsx).
+    // Grupos terminados saem da lista principal e só aparecem numa secção à
+    // parte, escondida por padrão — mesmo padrão das "Reservas Concluídas" do
+    // Hotel (ver dashboard/hotel/reservas/page.tsx).
     const activeGroups = useMemo(
-        () => groups.filter((g) => g.groupTravelStatus !== "COMPLETED"),
+        () => groups.filter((g) => g.status !== "COMPLETED"),
         [groups]
     );
     const completedGroups = useMemo(
-        () => groups.filter((g) => g.groupTravelStatus === "COMPLETED"),
+        () => groups.filter((g) => g.status === "COMPLETED"),
         [groups]
     );
 
-    const toggleExpanded = (slug: string) => {
-        setExpanded((prev) => ({ ...prev, [slug]: !prev[slug] }));
+    const toggleExpanded = (id: number) => {
+        setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const handleConfirmDate = async (group: ExcursionGroup) => {
+    const handleConfirmDate = async (group: GroupWithBookings) => {
         const { value: confirmedDate } = await Swal.fire({
-            title: `Confirmar data final — ${group.title}`,
+            title: `Confirmar data final — ${group.excursionTitle}`,
             html:
                 '<label for="swal-confirm-date" style="display:block;font-size:13px;color:#666;margin-bottom:6px;text-align:left;">Data final (AAAA-MM-DD)</label>' +
-                `<input type="date" id="swal-confirm-date" class="swal2-input" style="margin:0;width:100%;" value="${group.groupTravelConfirmedDate ?? ""}" />`,
+                `<input type="date" id="swal-confirm-date" class="swal2-input" style="margin:0;width:100%;" value="${group.confirmedDate ?? ""}" />`,
             focusConfirm: false,
             showCancelButton: true,
             confirmButtonText: "Confirmar",
@@ -125,7 +112,7 @@ export default function BookingsPage() {
         });
         if (!confirmedDate) return;
         try {
-            await excursoesService.confirmGroupTravel(group.slug, confirmedDate);
+            await excursionGroupsService.confirm(group.id, confirmedDate);
             Swal.fire("Confirmado!", "A excursão foi confirmada e já aparece na home.", "success");
             loadAll();
         } catch (error) {
@@ -134,7 +121,7 @@ export default function BookingsPage() {
         }
     };
 
-    const handleReopen = async (group: ExcursionGroup) => {
+    const handleReopen = async (group: GroupWithBookings) => {
         const result = await Swal.fire({
             title: "Reabrir excursão?",
             text: "A excursão deixa de aparecer na secção de Grupo Travel da home.",
@@ -145,7 +132,7 @@ export default function BookingsPage() {
         });
         if (!result.isConfirmed) return;
         try {
-            await excursoesService.reopenGroupTravel(group.slug);
+            await excursionGroupsService.reopen(group.id);
             Swal.fire("Reaberta!", "", "success");
             loadAll();
         } catch (error) {
@@ -154,7 +141,7 @@ export default function BookingsPage() {
         }
     };
 
-    const handleComplete = async (group: ExcursionGroup) => {
+    const handleComplete = async (group: GroupWithBookings) => {
         const result = await Swal.fire({
             title: "Marcar excursão como terminada?",
             text: "A excursão passa para a secção de Concluídas e deixa de poder ser editada aqui.",
@@ -165,7 +152,7 @@ export default function BookingsPage() {
         });
         if (!result.isConfirmed) return;
         try {
-            await excursoesService.completeGroupTravel(group.slug);
+            await excursionGroupsService.complete(group.id);
             Swal.fire("Concluída!", "", "success");
             loadAll();
         } catch (error) {
@@ -218,15 +205,20 @@ export default function BookingsPage() {
 
             <div className="flex flex-col gap-4">
                 {activeGroups.map((group) => (
-                    <div key={group.slug} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+                    <div key={group.id} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
                         <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                             <button
                                 className="flex items-center gap-2 text-left"
-                                onClick={() => toggleExpanded(group.slug)}
+                                onClick={() => toggleExpanded(group.id)}
                             >
-                                {expanded[group.slug] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                {expanded[group.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                 <div>
-                                    <p className="font-semibold text-gray-800 dark:text-white">{group.title}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-white">
+                                        {group.excursionTitle}
+                                        <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+                                            grupo #{group.id} · desde {new Date(group.createdAt).toLocaleDateString()}
+                                        </span>
+                                    </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
                                         {group.bookings.length} reserva(s) · €{group.price}
                                     </p>
@@ -234,13 +226,13 @@ export default function BookingsPage() {
                             </button>
 
                             <div className="flex flex-wrap items-center gap-2">
-                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.groupTravelStatus]}`}>
-                                    {GROUP_STATUS_LABEL[group.groupTravelStatus]}
-                                    {group.groupTravelConfirmedDate ? ` — ${group.groupTravelConfirmedDate}` : ""}
+                                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.status]}`}>
+                                    {GROUP_STATUS_LABEL[group.status]}
+                                    {group.confirmedDate ? ` — ${group.confirmedDate}` : ""}
                                 </span>
-                                {group.groupTravelStatus === "CONFIRMED" ? (
+                                {group.status === "CONFIRMED" ? (
                                     <>
-                                        {isPastDate(group.groupTravelConfirmedDate) && (
+                                        {isPastDate(group.confirmedDate) && (
                                             <button
                                                 onClick={() => handleComplete(group)}
                                                 className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
@@ -264,7 +256,7 @@ export default function BookingsPage() {
                                     </button>
                                 )}
                                 <a
-                                    href={`/dashboard/bookings/print/${group.slug}`}
+                                    href={`/dashboard/bookings/print/${group.id}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
@@ -274,7 +266,7 @@ export default function BookingsPage() {
                             </div>
                         </div>
 
-                        {expanded[group.slug] && (
+                        {expanded[group.id] && (
                             <div className="overflow-x-auto border-t border-gray-100 dark:border-gray-700">
                                 <table className="min-w-full leading-normal">
                                     <thead>
@@ -339,21 +331,26 @@ export default function BookingsPage() {
                         </div>
                     )}
                     {completedGroups.map((group) => (
-                        <div key={group.slug} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
+                        <div key={group.id} className="overflow-hidden rounded-lg bg-white shadow dark:bg-gray-800">
                             <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                                 <div>
-                                    <p className="font-semibold text-gray-800 dark:text-white">{group.title}</p>
+                                    <p className="font-semibold text-gray-800 dark:text-white">
+                                        {group.excursionTitle}
+                                        <span className="ml-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+                                            grupo #{group.id}
+                                        </span>
+                                    </p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">
                                         {group.bookings.length} reserva(s) · €{group.price}
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.groupTravelStatus]}`}>
-                                        {GROUP_STATUS_LABEL[group.groupTravelStatus]}
-                                        {group.groupTravelConfirmedDate ? ` — ${group.groupTravelConfirmedDate}` : ""}
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GROUP_STATUS_CLASS[group.status]}`}>
+                                        {GROUP_STATUS_LABEL[group.status]}
+                                        {group.confirmedDate ? ` — ${group.confirmedDate}` : ""}
                                     </span>
                                     <a
-                                        href={`/dashboard/bookings/print/${group.slug}`}
+                                        href={`/dashboard/bookings/print/${group.id}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"

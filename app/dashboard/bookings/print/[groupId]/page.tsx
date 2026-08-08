@@ -3,38 +3,38 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Booking, bookingsService } from "@/services/bookingsService";
-import { Excursao, excursoesService } from "@/services/excursoesService";
+import { ExcursionGroup, excursionGroupsService } from "@/services/excursionGroupsService";
 import { Printer } from "lucide-react";
 
 export default function PrintExcursionBookingsPage() {
-    const params = useParams<{ slug: string }>();
-    const slug = params.slug;
-    const [excursion, setExcursion] = useState<Excursao | null>(null);
+    const params = useParams<{ groupId: string }>();
+    const groupId = Number(params.groupId);
+    const [group, setGroup] = useState<ExcursionGroup | null>(null);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!slug) return;
+        if (!groupId) return;
         (async () => {
             try {
-                const [excursionData, bookingsData] = await Promise.all([
-                    excursoesService.getBySlug(slug),
+                const [groups, bookingsData] = await Promise.all([
+                    excursionGroupsService.getAll(),
                     bookingsService.getAll(),
                 ]);
-                setExcursion(excursionData);
-                setBookings(bookingsData.filter((b) => b.excursionSlug === slug));
+                setGroup(groups.find((g) => g.id === groupId) ?? null);
+                setBookings(bookingsData.filter((b) => b.excursionGroupId === groupId));
             } finally {
                 setLoading(false);
             }
         })();
-    }, [slug]);
+    }, [groupId]);
 
     if (loading) {
         return <div className="p-6 text-gray-600 dark:text-gray-300">A carregar...</div>;
     }
 
-    if (!excursion) {
-        return <div className="p-6 text-gray-600 dark:text-gray-300">Excursão não encontrada.</div>;
+    if (!group) {
+        return <div className="p-6 text-gray-600 dark:text-gray-300">Grupo não encontrado.</div>;
     }
 
     const confirmed = bookings.filter((b) => b.status === "Confirmed");
@@ -58,13 +58,13 @@ export default function PrintExcursionBookingsPage() {
                 </button>
             </div>
 
-            <h1 className="text-2xl font-bold">{excursion.title}</h1>
+            <h1 className="text-2xl font-bold">{group.excursionTitle}</h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 print:text-black">
-                {excursion.location} · {excursion.duration} · €{excursion.price}
+                {group.location} · {group.duration} · €{group.price}
             </p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 print:text-black">
-                {excursion.groupTravelStatus === "CONFIRMED"
-                    ? `Data confirmada: ${excursion.groupTravelConfirmedDate}`
+                {group.status === "CONFIRMED"
+                    ? `Data confirmada: ${group.confirmedDate}`
                     : "Ainda sem data confirmada"}
             </p>
 
@@ -88,7 +88,7 @@ export default function PrintExcursionBookingsPage() {
                     {confirmed.length === 0 && (
                         <tr>
                             <td colSpan={3} className="py-4 text-gray-500 print:text-black">
-                                Ainda não há reservas confirmadas para esta excursão.
+                                Ainda não há reservas confirmadas para este grupo.
                             </td>
                         </tr>
                     )}

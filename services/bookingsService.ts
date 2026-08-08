@@ -9,6 +9,7 @@ export interface Booking {
 	status: "Pending" | "Confirmed" | "Cancelled";
 	amount: number;
 	excursionSlug: string | null;
+	excursionGroupId: number | null;
 	tourId: number | null;
 	type: "EXCURSION" | "TOUR";
 }
@@ -22,6 +23,7 @@ interface BookingDto {
 	status: string;
 	amount: number;
 	excursionSlug: string | null;
+	excursionGroupId: number | null;
 	tourId: number | null;
 	type: string;
 }
@@ -42,6 +44,7 @@ function fromDto(dto: BookingDto): Booking {
 		status: STATUS_MAP[dto.status] ?? "Pending",
 		amount: dto.amount,
 		excursionSlug: dto.excursionSlug,
+		excursionGroupId: dto.excursionGroupId,
 		tourId: dto.tourId,
 		type: dto.type === "TOUR" ? "TOUR" : "EXCURSION",
 	};

@@ -13,8 +13,6 @@ export type Excursao = {
 	categories: string[];
 	createdById?: number | null;
 	status: string;
-	groupTravelStatus: "NONE" | "OPEN" | "CONFIRMED" | "COMPLETED";
-	groupTravelConfirmedDate: string | null;
 };
 
 export const excursoesService = {
@@ -32,13 +30,4 @@ export const excursoesService = {
 	archive: (slug: string): Promise<Excursao> => api.post<Excursao>(`/api/excursions/${slug}/archive`, {}),
 
 	restore: (slug: string): Promise<Excursao> => api.post<Excursao>(`/api/excursions/${slug}/restore`, {}),
-
-	confirmGroupTravel: (slug: string, confirmedDate: string): Promise<Excursao> =>
-		api.post<Excursao>(`/api/excursions/${slug}/group-travel/confirm`, { confirmedDate }),
-
-	reopenGroupTravel: (slug: string): Promise<Excursao> =>
-		api.post<Excursao>(`/api/excursions/${slug}/group-travel/reopen`, {}),
-
-	completeGroupTravel: (slug: string): Promise<Excursao> =>
-		api.post<Excursao>(`/api/excursions/${slug}/group-travel/complete`, {}),
 };
