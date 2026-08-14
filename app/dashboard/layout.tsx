@@ -29,6 +29,7 @@ import {
 	Settings2,
 	ShoppingBag,
 	Sparkles,
+	Megaphone,
 	Ticket,
 	Truck,
 	UserCog,
@@ -142,6 +143,7 @@ export default function DashboardLayout({
 		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
 		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
 		{ label: "Vouchers e Promoções", href: "/dashboard/vouchers", icon: Ticket },
+		{ label: "Publicidade e Campanhas", href: "/dashboard/campanhas", icon: Megaphone },
 	];
 	const ficheirosItems: NavLinkItem[] = [
 		{ label: "Media Library", href: "/dashboard/media", icon: FolderOpen },
