@@ -124,9 +124,10 @@ export default function DashboardLayout({
 		router.push("/login");
 	};
 
-	const excursoesItems: NavLinkItem[] = [
-		{ label: "Reservas (Excursões)", href: "/dashboard/bookings", icon: CalendarCheck },
-		{ label: "Editar/Configurar", href: "/dashboard/excursoes", icon: Settings2 },
+	const experienciasItems: NavLinkItem[] = [
+		{ label: "Pacotes de Viagem", href: "/dashboard/destinos", icon: MapPin },
+		{ label: "Tours", href: "/dashboard/bookings", icon: CalendarCheck },
+		{ label: "Configurar Tours", href: "/dashboard/excursoes", icon: Settings2 },
 	];
 	const hotelItems: NavLinkItem[] = [
 		{ label: "Calendário", href: "/dashboard/hotel/calendario", icon: CalendarDays },
@@ -134,24 +135,26 @@ export default function DashboardLayout({
 		{ label: "Editar/Configurar", href: "/dashboard/hotel/configurar", icon: Settings2 },
 		{ label: "Comodidades", href: "/dashboard/hotel/comodidades", icon: Sparkles },
 	];
+	const marketingItems: NavLinkItem[] = [
+		{ label: "Vouchers e Promoções", href: "/dashboard/vouchers", icon: Ticket },
+		{ label: "Publicidade e Campanhas", href: "/dashboard/campanhas", icon: Megaphone },
+		// Subscritores é ADMIN-only no backend (SubscriberController) — ao contrário dos
+		// outros dois itens, que AGENTE já podia gerir na Loja. Este grupo fica incondicional
+		// (para não esconder Vouchers/Campanhas de AGENTE), só este item é filtrado.
+		...(isAdmin ? [{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail }] : []),
+	];
+	const lojaItems: NavLinkItem[] = [
+		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
+		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
+	];
 	const conteudoItems: NavLinkItem[] = [
 		{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },
 		{ label: "Galeria", href: "/dashboard/galeria", icon: ImageIcon },
 		{ label: "Testemunhos", href: "/dashboard/testimonials", icon: Quote },
 	];
-	const lojaItems: NavLinkItem[] = [
-		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
-		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
-		{ label: "Vouchers e Promoções", href: "/dashboard/vouchers", icon: Ticket },
-		{ label: "Publicidade e Campanhas", href: "/dashboard/campanhas", icon: Megaphone },
-	];
-	const ficheirosItems: NavLinkItem[] = [
-		{ label: "Media Library", href: "/dashboard/media", icon: FolderOpen },
-	];
 	const adminItems: NavLinkItem[] = [
 		{ label: "Usuários", href: "/dashboard/users", icon: Users },
 		{ label: "Mensagens", href: "/dashboard/contacts", icon: Inbox },
-		{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail },
 		{ label: "Carreiras", href: "/dashboard/carreiras", icon: Briefcase },
 		{ label: "Equipa", href: "/dashboard/equipa", icon: UserCog },
 		{ label: "Patrocinadores", href: "/dashboard/sponsors", icon: Handshake },
@@ -161,12 +164,12 @@ export default function DashboardLayout({
 
 	const activeHref = findActiveHref(pathname, [
 		"/dashboard",
-		"/dashboard/destinos",
-		...excursoesItems.map((i) => i.href),
+		"/dashboard/media",
+		...experienciasItems.map((i) => i.href),
 		...hotelItems.map((i) => i.href),
-		...conteudoItems.map((i) => i.href),
+		...marketingItems.map((i) => i.href),
 		...lojaItems.map((i) => i.href),
-		...ficheirosItems.map((i) => i.href),
+		...conteudoItems.map((i) => i.href),
 		...(isAdmin ? adminItems.map((i) => i.href) : []),
 	]);
 
@@ -214,18 +217,18 @@ export default function DashboardLayout({
 				<nav className="flex-1 overflow-y-auto pb-6">
 					<div className="flex flex-col gap-0.5">
 						<NavLink label="Visão Geral" href="/dashboard" icon={LayoutDashboard} active={activeHref === "/dashboard"} />
-						<NavLink label="Destinos" href="/dashboard/destinos" icon={MapPin} active={activeHref === "/dashboard/destinos"} />
+						<NavLink label="Media Library" href="/dashboard/media" icon={FolderOpen} active={activeHref === "/dashboard/media"} />
 					</div>
 
-					<NavGroup title="Excursões" items={excursoesItems} activeHref={activeHref} />
+					<NavGroup title="Experiências" items={experienciasItems} activeHref={activeHref} />
 
 					<NavGroup title="Hotel" items={hotelItems} activeHref={activeHref} />
 
-					<NavGroup title="Conteúdo" items={conteudoItems} activeHref={activeHref} />
+					<NavGroup title="Marketing" items={marketingItems} activeHref={activeHref} />
 
 					<NavGroup title="Loja" items={lojaItems} activeHref={activeHref} />
 
-					<NavGroup title="Ficheiros" items={ficheirosItems} activeHref={activeHref} />
+					<NavGroup title="Conteúdo" items={conteudoItems} activeHref={activeHref} />
 
 					{isAdmin && <NavGroup title="Administração" items={adminItems} activeHref={activeHref} />}
 				</nav>
