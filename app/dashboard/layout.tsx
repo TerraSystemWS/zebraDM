@@ -30,6 +30,7 @@ import {
 	ShoppingBag,
 	Sparkles,
 	Megaphone,
+	Receipt,
 	Ticket,
 	Truck,
 	UserCog,
@@ -146,6 +147,7 @@ export default function DashboardLayout({
 	const lojaItems: NavLinkItem[] = [
 		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
 		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
+		{ label: "Faturação", href: "/dashboard/faturacao", icon: Receipt },
 	];
 	const conteudoItems: NavLinkItem[] = [
 		{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },

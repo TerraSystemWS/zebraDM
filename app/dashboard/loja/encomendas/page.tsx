@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Order, ordersService } from "@/services/ordersService";
+import { CounterSaleItemInput, Order, ordersService } from "@/services/ordersService";
+import { Produto, productsService } from "@/services/productsService";
+import Modal from "@/components/Modal";
 import Swal from "sweetalert2";
+
+const AWAITING_MANUAL_PAYMENT = new Set(["AWAITING_TRANSFER", "AWAITING_CASH"]);
+
+function parsePreco(preco: string): number {
+	return parseFloat(preco.replace("€", "").replace(",", ".")) || 0;
+}
 
 const PAYMENT_STATUS_LABELS: Record<string, string> = {
 	PENDING_PAYMENT: "Pendente",
@@ -39,6 +47,18 @@ export default function OrdersPage() {
 	const [fulfillmentFilter, setFulfillmentFilter] = useState("");
 	const [showDelivered, setShowDelivered] = useState(false);
 
+	const [produtos, setProdutos] = useState<Produto[]>([]);
+	const [showCounterSale, setShowCounterSale] = useState(false);
+	const [cartItems, setCartItems] = useState<CounterSaleItemInput[]>([]);
+	const [selectedProductId, setSelectedProductId] = useState<number | "">("");
+	const [selectedQty, setSelectedQty] = useState(1);
+	const [guestName, setGuestName] = useState("");
+	const [guestEmail, setGuestEmail] = useState("");
+	const [customerNif, setCustomerNif] = useState("");
+	const [saleMethod, setSaleMethod] = useState<"CASH" | "TRANSFER">("CASH");
+	const [voucherCode, setVoucherCode] = useState("");
+	const [saving, setSaving] = useState(false);
+
 	useEffect(() => {
 		load();
 	}, []);
@@ -46,12 +66,92 @@ export default function OrdersPage() {
 	const load = async () => {
 		setLoading(true);
 		try {
-			setOrders(await ordersService.getAll());
+			const [ordersData, produtosData] = await Promise.all([ordersService.getAll(), productsService.getAll()]);
+			setOrders(ordersData);
+			setProdutos(produtosData);
 		} catch (error) {
 			console.error("Error loading orders:", error);
 			Swal.fire("Erro", "Erro ao carregar encomendas", "error");
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const handleMarkPaid = async (order: Order) => {
+		const result = await Swal.fire({
+			title: `Marcar a encomenda #${order.id} como paga?`,
+			text: "Isto emite a fatura para esta encomenda.",
+			icon: "question",
+			showCancelButton: true,
+			confirmButtonText: "Sim, foi paga",
+		});
+		if (!result.isConfirmed) return;
+		try {
+			await ordersService.markPaid(order.id);
+			await load();
+			Swal.fire("Sucesso", "Encomenda marcada como paga e fatura emitida.", "success");
+		} catch (error) {
+			Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível marcar como paga", "error");
+		}
+	};
+
+	const openCounterSale = () => {
+		setCartItems([]);
+		setSelectedProductId("");
+		setSelectedQty(1);
+		setGuestName("");
+		setGuestEmail("");
+		setCustomerNif("");
+		setSaleMethod("CASH");
+		setVoucherCode("");
+		setShowCounterSale(true);
+	};
+
+	const addToCart = () => {
+		if (!selectedProductId) return;
+		const produto = produtos.find((p) => p.id === selectedProductId);
+		if (!produto) return;
+		setCartItems((prev) => [
+			...prev,
+			{ productId: produto.id, name: produto.titulo, price: parsePreco(produto.preco), quantity: selectedQty },
+		]);
+		setSelectedProductId("");
+		setSelectedQty(1);
+	};
+
+	const removeFromCart = (index: number) => {
+		setCartItems((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	const cartTotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+	const handleCounterSaleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (cartItems.length === 0) {
+			Swal.fire("Erro", "Adiciona pelo menos um produto", "error");
+			return;
+		}
+		if (!guestName.trim()) {
+			Swal.fire("Erro", "O nome do cliente é obrigatório", "error");
+			return;
+		}
+		setSaving(true);
+		try {
+			await ordersService.counterSale({
+				items: cartItems,
+				paymentMethod: saleMethod,
+				guestName: guestName.trim(),
+				guestEmail: guestEmail.trim() || undefined,
+				customerNif: customerNif.trim() || undefined,
+				voucherCode: voucherCode.trim() || undefined,
+			});
+			setShowCounterSale(false);
+			await load();
+			Swal.fire("Sucesso", "Venda ao balcão criada. Marca como paga quando o pagamento for recebido.", "success");
+		} catch (error) {
+			Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível criar a venda", "error");
+		} finally {
+			setSaving(false);
 		}
 	};
 
@@ -112,6 +212,9 @@ export default function OrdersPage() {
 						Produtos comprados na loja — trata aqui o envio/entrega de cada encomenda.
 					</p>
 				</div>
+				<button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700" onClick={openCounterSale}>
+					+ Vender no Balcão
+				</button>
 			</div>
 
 			<div className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -137,7 +240,7 @@ export default function OrdersPage() {
 				<table className="min-w-full leading-normal">
 					<thead>
 						<tr>
-							{["ID", "Cliente", "Itens", "Valor", "Pagamento", "Envio", "Data"].map((h) => (
+							{["ID", "Cliente", "Itens", "Valor", "Pagamento", "Envio", "Data", "Ações"].map((h) => (
 								<th key={h} className="border-b-2 border-gray-200 bg-gray-100 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700 dark:text-gray-300">
 									{h}
 								</th>
@@ -172,11 +275,18 @@ export default function OrdersPage() {
 								<td className="border-b border-gray-200 bg-white px-5 py-4 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white">
 									{new Date(order.createdAt).toLocaleDateString()}
 								</td>
+								<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800">
+									{AWAITING_MANUAL_PAYMENT.has(order.status) && (
+										<button className="text-blue-600 hover:underline" onClick={() => handleMarkPaid(order)}>
+											Marcar como Paga
+										</button>
+									)}
+								</td>
 							</tr>
 						))}
 						{filtered.length === 0 && (
 							<tr>
-								<td colSpan={7} className="px-5 py-6 text-center text-sm text-gray-500 dark:bg-gray-800">Sem encomendas.</td>
+								<td colSpan={8} className="px-5 py-6 text-center text-sm text-gray-500 dark:bg-gray-800">Sem encomendas.</td>
 							</tr>
 						)}
 					</tbody>
@@ -237,6 +347,102 @@ export default function OrdersPage() {
 						</tbody>
 					</table>
 				</div>
+			)}
+
+			{showCounterSale && (
+				<Modal title="Vender no Balcão" onClose={() => setShowCounterSale(false)}>
+					<form onSubmit={handleCounterSaleSubmit} className="grid gap-4">
+						<div>
+							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Adicionar produto</label>
+							<div className="flex gap-2">
+								<select
+									className="flex-1 rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									value={selectedProductId}
+									onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : "")}
+								>
+									<option value="">Escolhe um produto</option>
+									{produtos.map((p) => (
+										<option key={p.id} value={p.id}>{p.titulo} — {p.preco}</option>
+									))}
+								</select>
+								<input
+									type="number"
+									min={1}
+									className="w-20 rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									value={selectedQty}
+									onChange={(e) => setSelectedQty(Number(e.target.value))}
+								/>
+								<button type="button" className="rounded bg-gray-600 px-3 py-2 text-sm text-white hover:bg-gray-700" onClick={addToCart}>
+									Adicionar
+								</button>
+							</div>
+						</div>
+
+						{cartItems.length > 0 && (
+							<div className="rounded border border-gray-200 dark:border-gray-600">
+								{cartItems.map((item, idx) => (
+									<div key={idx} className="flex items-center justify-between border-b border-gray-100 px-3 py-2 text-sm last:border-0 dark:border-gray-700 dark:text-white">
+										<span>{item.quantity}× {item.name} — ${(item.price * item.quantity).toFixed(2)}</span>
+										<button type="button" className="text-red-600 hover:underline" onClick={() => removeFromCart(idx)}>Remover</button>
+									</div>
+								))}
+								<div className="px-3 py-2 text-right text-sm font-bold dark:text-white">Total: ${cartTotal.toFixed(2)}</div>
+							</div>
+						)}
+
+						<div>
+							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Nome do Cliente</label>
+							<input
+								required
+								className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								value={guestName}
+								onChange={(e) => setGuestName(e.target.value)}
+							/>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Email (opcional)</label>
+								<input
+									type="email"
+									className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									value={guestEmail}
+									onChange={(e) => setGuestEmail(e.target.value)}
+								/>
+							</div>
+							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">NIF (opcional)</label>
+								<input
+									className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									value={customerNif}
+									onChange={(e) => setCustomerNif(e.target.value)}
+								/>
+							</div>
+						</div>
+						<div>
+							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Código de voucher (opcional)</label>
+							<input
+								className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								value={voucherCode}
+								onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+							/>
+						</div>
+						<div>
+							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Método de Pagamento</label>
+							<select
+								className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+								value={saleMethod}
+								onChange={(e) => setSaleMethod(e.target.value as "CASH" | "TRANSFER")}
+							>
+								<option value="CASH">Dinheiro</option>
+								<option value="TRANSFER">Transferência</option>
+							</select>
+						</div>
+
+						<button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:opacity-50">
+							{saving ? "A criar..." : "Criar Venda"}
+						</button>
+					</form>
+				</Modal>
 			)}
 		</div>
 	);
