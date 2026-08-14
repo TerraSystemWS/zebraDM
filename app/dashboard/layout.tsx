@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { isAuthenticated, logout } from "@/lib/auth";
 import { getUser } from "@/lib/api";
 import { contactsService } from "@/services/contactsService";
+import ProfileMenu from "@/components/ProfileMenu";
 import {
 	BedDouble,
 	Bell,
@@ -19,7 +20,6 @@ import {
 	Image as ImageIcon,
 	Inbox,
 	LayoutDashboard,
-	LogOut,
 	Mail,
 	MapPin,
 	Menu,
@@ -242,46 +242,31 @@ export default function DashboardLayout({
 					>
 						<Menu size={24} />
 					</button>
-					<div className="flex items-center gap-4">
-						<div className="flex items-center gap-1">
-							<Link
-								href="/dashboard/contacts"
-								className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-								aria-label="Mensagens de contacto"
-								title="Mensagens de contacto"
-							>
-								<Inbox size={20} />
-								{unreadCount > 0 && (
-									<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-										{unreadCount > 99 ? "99+" : unreadCount}
-									</span>
-								)}
-							</Link>
-							<button
-								type="button"
-								className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-								aria-label="Notificações (em breve)"
-								title="Notificações (em breve)"
-							>
-								<Bell size={20} />
-							</button>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-								{(getUser()?.fullName ?? "A").charAt(0).toUpperCase()}
-							</div>
-							<span className="hidden font-medium text-gray-700 dark:text-gray-200 sm:inline">
-								{getUser()?.fullName ?? "TerraSystem Admin"}
-							</span>
-						</div>
-						<button
-							onClick={handleLogout}
-							className="flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-sm text-white transition-colors hover:bg-red-600"
+					<div className="flex items-center gap-1">
+						<Link
+							href="/dashboard/contacts"
+							className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+							aria-label="Mensagens de contacto"
+							title="Mensagens de contacto"
 						>
-							<LogOut size={15} />
-							Sair
+							<Inbox size={20} />
+							{unreadCount > 0 && (
+								<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+									{unreadCount > 99 ? "99+" : unreadCount}
+								</span>
+							)}
+						</Link>
+						<button
+							type="button"
+							className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+							aria-label="Notificações (em breve)"
+							title="Notificações (em breve)"
+						>
+							<Bell size={20} />
 						</button>
 					</div>
+
+					<ProfileMenu onLogout={handleLogout} />
 				</header>
 
 				{/* Page Content */}
