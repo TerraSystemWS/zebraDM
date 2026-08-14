@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 
 export type Excursao = {
+	id?: number;
 	slug: string;
 	title: string;
 	image: string;

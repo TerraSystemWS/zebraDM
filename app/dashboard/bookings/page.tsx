@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Booking, bookingsService } from "@/services/bookingsService";
 import { ExcursionGroup, excursionGroupsService } from "@/services/excursionGroupsService";
+import { Excursao, excursoesService } from "@/services/excursoesService";
 import { Printer, ChevronDown, ChevronRight } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -32,6 +33,7 @@ function isPastDate(date: string | null): boolean {
 export default function BookingsPage() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [excursionGroups, setExcursionGroups] = useState<ExcursionGroup[]>([]);
+    const [excursoes, setExcursoes] = useState<Excursao[]>([]);
     const [loading, setLoading] = useState(true);
     const [expanded, setExpanded] = useState<Record<number, boolean>>({});
     const [showCompleted, setShowCompleted] = useState(false);
@@ -43,17 +45,130 @@ export default function BookingsPage() {
     const loadAll = async () => {
         setLoading(true);
         try {
-            const [bookingsData, groupsData] = await Promise.all([
+            const [bookingsData, groupsData, excursoesData] = await Promise.all([
                 bookingsService.getAll(),
                 excursionGroupsService.getAll(),
+                excursoesService.getAll(),
             ]);
             setBookings(bookingsData);
             setExcursionGroups(groupsData);
+            setExcursoes(excursoesData);
         } catch (error) {
             console.error("Error loading bookings:", error);
             Swal.fire("Erro", "Erro ao carregar reservas", "error");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Campos do primeiro participante, sempre pedidos explicitamente aqui — nunca vêm do
+    // admin/agente com sessão iniciada no dashboard, que só está a *criar* o grupo, não a
+    // participar nele.
+    const PARTICIPANT_FIELDS_HTML =
+        '<input id="swal-guest-name" class="swal2-input" placeholder="Nome completo" style="margin:0 0 8px;">' +
+        '<input id="swal-guest-email" class="swal2-input" placeholder="Email (opcional)" style="margin:0 0 8px;">' +
+        '<input id="swal-guest-phone" class="swal2-input" placeholder="Telefone (opcional)" style="margin:0 0 8px;">' +
+        '<label for="swal-guest-date" style="display:block;font-size:13px;color:#666;margin:6px 0 2px;text-align:left;">Data preferida</label>' +
+        '<input id="swal-guest-date" type="date" class="swal2-input" style="margin:0 0 8px;">' +
+        '<label for="swal-guest-status" style="display:block;font-size:13px;color:#666;margin:6px 0 2px;text-align:left;">Estado</label>' +
+        '<select id="swal-guest-status" class="swal2-input" style="margin:0;">' +
+        '<option value="PENDING">Pendente</option>' +
+        '<option value="CONFIRMED">Confirmado (já pagou)</option>' +
+        "</select>";
+
+    function readParticipantFields() {
+        const name = (document.getElementById("swal-guest-name") as HTMLInputElement)?.value?.trim();
+        if (!name) {
+            Swal.showValidationMessage("O nome é obrigatório");
+            return false;
+        }
+        return {
+            guestName: name,
+            guestEmail: (document.getElementById("swal-guest-email") as HTMLInputElement)?.value || undefined,
+            guestPhone: (document.getElementById("swal-guest-phone") as HTMLInputElement)?.value || undefined,
+            date: (document.getElementById("swal-guest-date") as HTMLInputElement)?.value || undefined,
+            status: (document.getElementById("swal-guest-status") as HTMLSelectElement)?.value || "PENDING",
+        };
+    }
+
+    // Um grupo nunca fica vazio: criá-lo já pede os dados de quem vai ser o primeiro
+    // participante, na mesma ação (em vez de abrir um grupo sem ninguém lá dentro).
+    const handleCreateGroup = async () => {
+        if (excursoes.length === 0) {
+            Swal.fire("Erro", "Não há excursões disponíveis — cria uma primeiro em Editar/Configurar.", "error");
+            return;
+        }
+        const excursionOptionsHtml = excursoes
+            .map((ex) => `<option value="${ex.slug}">${ex.title}</option>`)
+            .join("");
+        const { value: formValues } = await Swal.fire({
+            title: "Criar Grupo de Viagem",
+            html:
+                '<label for="swal-group-excursion" style="display:block;font-size:13px;color:#666;margin-bottom:2px;text-align:left;">Excursão</label>' +
+                `<select id="swal-group-excursion" class="swal2-input" style="margin:0 0 12px;">${excursionOptionsHtml}</select>` +
+                '<label style="display:block;font-size:13px;font-weight:600;color:#333;margin:4px 0 6px;text-align:left;">Primeiro participante</label>' +
+                PARTICIPANT_FIELDS_HTML,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Criar",
+            cancelButtonText: "Cancelar",
+            preConfirm: () => {
+                const participant = readParticipantFields();
+                if (!participant) return false;
+                const slug = (document.getElementById("swal-group-excursion") as HTMLSelectElement)?.value;
+                return { slug, ...participant };
+            },
+        });
+        if (!formValues) return;
+        try {
+            const { slug, ...participant } = formValues;
+            const group = await excursionGroupsService.create(slug);
+            await excursionGroupsService.addParticipant(group.id, participant);
+            Swal.fire("Sucesso", "Grupo de viagem criado com o primeiro participante.", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error creating group travel:", error);
+            Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível criar o grupo.", "error");
+        }
+    };
+
+    const handleAddParticipant = async (group: GroupWithBookings) => {
+        const { value: formValues } = await Swal.fire({
+            title: `Adicionar Participante — ${group.excursionTitle}`,
+            html: PARTICIPANT_FIELDS_HTML,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: "Adicionar",
+            cancelButtonText: "Cancelar",
+            preConfirm: readParticipantFields,
+        });
+        if (!formValues) return;
+        try {
+            await excursionGroupsService.addParticipant(group.id, formValues);
+            Swal.fire("Sucesso", "Participante adicionado.", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error adding participant:", error);
+            Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível adicionar o participante.", "error");
+        }
+    };
+
+    const handleRemoveParticipant = async (group: GroupWithBookings, booking: Booking) => {
+        const result = await Swal.fire({
+            title: `Remover "${booking.user}" do grupo?`,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Sim, remover",
+            cancelButtonText: "Cancelar",
+        });
+        if (!result.isConfirmed) return;
+        try {
+            await excursionGroupsService.removeParticipant(group.id, booking.id);
+            Swal.fire("Removido!", "", "success");
+            loadAll();
+        } catch (error) {
+            console.error("Error removing participant:", error);
+            Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível remover o participante.", "error");
         }
     };
 
@@ -195,6 +310,12 @@ export default function BookingsPage() {
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                     Reservas (Excursões)
                 </h1>
+                <button
+                    onClick={handleCreateGroup}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                >
+                    + Criar Grupo de Viagem
+                </button>
             </div>
 
             {activeGroups.length === 0 && (
@@ -230,6 +351,14 @@ export default function BookingsPage() {
                                     {GROUP_STATUS_LABEL[group.status]}
                                     {group.confirmedDate ? ` — ${group.confirmedDate}` : ""}
                                 </span>
+                                {group.status === "OPEN" && (
+                                    <button
+                                        onClick={() => handleAddParticipant(group)}
+                                        className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
+                                    >
+                                        + Participante
+                                    </button>
+                                )}
                                 {group.status === "CONFIRMED" ? (
                                     <>
                                         {isPastDate(group.confirmedDate) && (
@@ -271,7 +400,7 @@ export default function BookingsPage() {
                                 <table className="min-w-full leading-normal">
                                     <thead>
                                         <tr>
-                                            {["Cliente", "Email", "Data preferida", "Status", "Valor"].map((h) => (
+                                            {["Cliente", "Email", "Data preferida", "Status", "Valor", "Ações"].map((h) => (
                                                 <th
                                                     key={h}
                                                     className="border-b-2 border-gray-200 bg-gray-50 px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:border-gray-700 dark:bg-gray-700/50 dark:text-gray-300"
@@ -303,6 +432,18 @@ export default function BookingsPage() {
                                                 </td>
                                                 <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
                                                     €{booking.amount}
+                                                </td>
+                                                <td className="border-b border-gray-100 px-4 py-3 text-sm dark:border-gray-700">
+                                                    {booking.status === "Confirmed" ? (
+                                                        <span className="text-xs text-gray-400" title="Já confirmado/pago — não pode ser removido">—</span>
+                                                    ) : (
+                                                        <button
+                                                            className="text-red-600 hover:text-red-900 dark:text-red-400"
+                                                            onClick={() => handleRemoveParticipant(group, booking)}
+                                                        >
+                                                            Remover
+                                                        </button>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}

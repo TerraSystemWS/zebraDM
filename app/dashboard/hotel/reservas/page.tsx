@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import { Hotel, Reservation, Room, RoomType, hotelService } from "@/services/hotelService";
 import Modal from "@/components/Modal";
+import GuestManagerModal from "@/components/hotel/GuestManagerModal";
 import { getUser } from "@/lib/api";
 import { roomLabel } from "@/lib/roomLabel";
 
@@ -33,6 +34,9 @@ const emptyForm = {
 	guestName: "",
 	guestEmail: "",
 	guestPhone: "",
+	guestDateOfBirth: "",
+	guestNationality: "",
+	guestPassportNumber: "",
 	checkIn: "",
 	checkOut: "",
 	guests: 1,
@@ -54,6 +58,8 @@ export default function HotelReservasPage() {
 	const [roomFilter, setRoomFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [showCompleted, setShowCompleted] = useState(false);
+	const [guestManagerReservationId, setGuestManagerReservationId] = useState<number | null>(null);
+	const [guestDocument, setGuestDocument] = useState<File | null>(null);
 	const isAdmin = getUser()?.role === "ADMIN";
 
 	useEffect(() => {
@@ -86,8 +92,15 @@ export default function HotelReservasPage() {
 
 	const openCreate = () => {
 		setForm({ ...emptyForm, roomId: rooms[0]?.id || 0 });
+		setGuestDocument(null);
 		setShowForm(true);
 	};
+
+	const selectedRoomCapacity = (() => {
+		const room = rooms.find((r) => r.id === form.roomId);
+		const rt = room ? roomTypes.find((t) => t.id === room.roomTypeId) : null;
+		return rt?.capacity ?? null;
+	})();
 
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -97,10 +110,30 @@ export default function HotelReservasPage() {
 		}
 		setSaving(true);
 		try {
-			await hotelService.createReservationAsAdmin(form);
+			const reservation = await hotelService.createReservationAsAdmin(form);
+			let guestWarning = false;
+			try {
+				const guest = await hotelService.addReservationGuest(reservation.id, {
+					fullName: form.guestName,
+					dateOfBirth: form.guestDateOfBirth || undefined,
+					nationality: form.guestNationality || undefined,
+					passportNumber: form.guestPassportNumber || undefined,
+					isPrimary: true,
+				});
+				if (guestDocument) {
+					await hotelService.uploadGuestDocument(reservation.id, guest.id, guestDocument);
+				}
+			} catch {
+				guestWarning = true;
+			}
 			setShowForm(false);
+			setGuestDocument(null);
 			if (hotelId != null) await loadData(hotelId);
-			Swal.fire("Sucesso", "Reserva criada.", "success");
+			if (guestWarning) {
+				Swal.fire("Reserva criada", 'Não foi possível guardar os dados do hóspede — pode adicioná-los depois em "Hóspedes".', "warning");
+			} else {
+				Swal.fire("Sucesso", "Reserva criada.", "success");
+			}
 		} catch (error) {
 			Swal.fire("Erro", error instanceof Error ? error.message : "Não foi possível criar a reserva", "error");
 		} finally {
@@ -291,6 +324,7 @@ export default function HotelReservasPage() {
 										<td className="border-b border-gray-200 bg-white px-5 py-4 text-sm dark:border-gray-700 dark:bg-gray-800">
 											<div className="flex flex-col items-start gap-1">
 												<button className="text-blue-600 hover:text-blue-900" onClick={() => changeStatus(r)}>Alterar Estado</button>
+												<button className="text-blue-600 hover:text-blue-900" onClick={() => setGuestManagerReservationId(r.id)}>Hóspedes</button>
 												{canDelete(r) && (
 													<button className="text-red-600 hover:text-red-900" onClick={() => doDelete(r)}>Apagar</button>
 												)}
@@ -372,6 +406,31 @@ export default function HotelReservasPage() {
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Data de Nascimento</label>
+								<input type="date" className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.guestDateOfBirth} onChange={(e) => setForm({ ...form, guestDateOfBirth: e.target.value })} />
+							</div>
+							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Nacionalidade</label>
+								<input className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.guestNationality} onChange={(e) => setForm({ ...form, guestNationality: e.target.value })} />
+							</div>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Número de Passaporte</label>
+								<input className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.guestPassportNumber} onChange={(e) => setForm({ ...form, guestPassportNumber: e.target.value })} />
+							</div>
+							<div>
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Anexo (foto do passaporte)</label>
+								<input
+									type="file"
+									accept="image/jpeg,image/png,application/pdf"
+									className="w-full rounded border px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									onChange={(e) => setGuestDocument(e.target.files?.[0] || null)}
+								/>
+							</div>
+						</div>
+						<div className="grid grid-cols-2 gap-4">
+							<div>
 								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Check-in</label>
 								<input type="date" required className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} />
 							</div>
@@ -382,8 +441,22 @@ export default function HotelReservasPage() {
 						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div>
-								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Hóspedes</label>
-								<input type="number" min={1} required className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white" value={form.guests} onChange={(e) => setForm({ ...form, guests: Number(e.target.value) })} />
+								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">
+									Hóspedes {selectedRoomCapacity != null && <span className="font-normal text-gray-400">(máx. {selectedRoomCapacity})</span>}
+								</label>
+								<input
+									type="number"
+									min={1}
+									max={selectedRoomCapacity ?? undefined}
+									required
+									className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+									value={form.guests}
+									onChange={(e) => {
+										const value = Number(e.target.value);
+										const capped = selectedRoomCapacity != null ? Math.min(value, selectedRoomCapacity) : value;
+										setForm({ ...form, guests: capped });
+									}}
+								/>
 							</div>
 							<div>
 								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Pagamento</label>
@@ -400,13 +473,16 @@ export default function HotelReservasPage() {
 								<option value="CONFIRMED">Confirmada</option>
 								<option value="ON_HOLD">Em Espera</option>
 							</select>
-							<p className="mt-1 text-xs text-gray-500">Só o admin pode colocar uma reserva &quot;Em Espera&quot;.</p>
 						</div>
 						<button type="submit" disabled={saving} className="rounded bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 disabled:opacity-50">
 							{saving ? "A guardar..." : "Criar Reserva"}
 						</button>
 					</form>
 				</Modal>
+			)}
+
+			{guestManagerReservationId != null && (
+				<GuestManagerModal reservationId={guestManagerReservationId} onClose={() => setGuestManagerReservationId(null)} />
 			)}
 		</div>
 	);

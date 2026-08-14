@@ -5,8 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { isAuthenticated, logout } from "@/lib/auth";
 import { getUser } from "@/lib/api";
+import { contactsService } from "@/services/contactsService";
 import {
 	BedDouble,
+	Bell,
 	CalendarCheck,
 	CalendarDays,
 	Compass,
@@ -15,6 +17,7 @@ import {
 	FolderOpen,
 	Handshake,
 	Image as ImageIcon,
+	Inbox,
 	LayoutDashboard,
 	LogOut,
 	Mail,
@@ -26,6 +29,7 @@ import {
 	Settings2,
 	ShoppingBag,
 	Sparkles,
+	Ticket,
 	Truck,
 	UserCog,
 	Users,
@@ -94,6 +98,7 @@ export default function DashboardLayout({
 	const pathname = usePathname();
 	const [isLoading, setIsLoading] = useState(true);
 	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [unreadCount, setUnreadCount] = useState(0);
 	const isAdmin = getUser()?.role === "ADMIN";
 
 	useEffect(() => {
@@ -103,6 +108,11 @@ export default function DashboardLayout({
 			setIsLoading(false);
 		}
 	}, [router]);
+
+	useEffect(() => {
+		if (!isAuthenticated()) return;
+		contactsService.getUnreadCount().then(setUnreadCount).catch(() => {});
+	}, [pathname]);
 
 	useEffect(() => {
 		setSidebarOpen(false);
@@ -131,12 +141,14 @@ export default function DashboardLayout({
 	const lojaItems: NavLinkItem[] = [
 		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
 		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
+		{ label: "Vouchers e Promoções", href: "/dashboard/vouchers", icon: Ticket },
 	];
 	const ficheirosItems: NavLinkItem[] = [
 		{ label: "Media Library", href: "/dashboard/media", icon: FolderOpen },
 	];
 	const adminItems: NavLinkItem[] = [
 		{ label: "Usuários", href: "/dashboard/users", icon: Users },
+		{ label: "Mensagens", href: "/dashboard/contacts", icon: Inbox },
 		{ label: "Subscritores", href: "/dashboard/subscribers", icon: Mail },
 		{ label: "Carreiras", href: "/dashboard/carreiras", icon: Briefcase },
 		{ label: "Equipa", href: "/dashboard/equipa", icon: UserCog },
@@ -229,6 +241,29 @@ export default function DashboardLayout({
 						<Menu size={24} />
 					</button>
 					<div className="flex items-center gap-4">
+						<div className="flex items-center gap-1">
+							<Link
+								href="/dashboard/contacts"
+								className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+								aria-label="Mensagens de contacto"
+								title="Mensagens de contacto"
+							>
+								<Inbox size={20} />
+								{unreadCount > 0 && (
+									<span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+										{unreadCount > 99 ? "99+" : unreadCount}
+									</span>
+								)}
+							</Link>
+							<button
+								type="button"
+								className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
+								aria-label="Notificações (em breve)"
+								title="Notificações (em breve)"
+							>
+								<Bell size={20} />
+							</button>
+						</div>
 						<div className="flex items-center gap-2">
 							<div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
 								{(getUser()?.fullName ?? "A").charAt(0).toUpperCase()}

@@ -29,4 +29,16 @@ export const excursionGroupsService = {
 
 	complete: (id: number): Promise<ExcursionGroup> =>
 		api.post<ExcursionGroup>(`/api/excursion-groups/${id}/complete`, {}),
+
+	create: (excursionSlug: string): Promise<ExcursionGroup> =>
+		api.post<ExcursionGroup>("/api/excursion-groups", { excursionSlug }),
+
+	// Um participante = uma pessoa = uma chamada — sem campo de nº de pessoas.
+	addParticipant: (
+		groupId: number,
+		data: { guestName: string; guestEmail?: string; guestPhone?: string; date?: string; status?: string }
+	): Promise<void> => api.post<void>(`/api/excursion-groups/${groupId}/participants`, data),
+
+	removeParticipant: (groupId: number, bookingId: number): Promise<void> =>
+		api.delete<void>(`/api/excursion-groups/${groupId}/participants/${bookingId}`),
 };

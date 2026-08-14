@@ -6,7 +6,9 @@ export interface Booking {
 	userEmail: string | null;
 	tour: string;
 	date: string;
-	status: "Pending" | "Confirmed" | "Cancelled";
+	// "Pending"/"Confirmed"/"Cancelled" (usados pelo select de alterar estado) ou, para excursões
+	// pagas online, o estado bruto do backend (PENDING_PAYMENT/AWAITING_TRANSFER/AWAITING_CASH/FAILED).
+	status: string;
 	amount: number;
 	excursionSlug: string | null;
 	excursionGroupId: number | null;
@@ -28,7 +30,7 @@ interface BookingDto {
 	type: string;
 }
 
-const STATUS_MAP: Record<string, Booking["status"]> = {
+const STATUS_MAP: Record<string, string> = {
 	PENDING: "Pending",
 	CONFIRMED: "Confirmed",
 	CANCELLED: "Cancelled",
@@ -41,7 +43,7 @@ function fromDto(dto: BookingDto): Booking {
 		userEmail: dto.userEmail,
 		tour: dto.item,
 		date: dto.date,
-		status: STATUS_MAP[dto.status] ?? "Pending",
+		status: STATUS_MAP[dto.status] ?? dto.status,
 		amount: dto.amount,
 		excursionSlug: dto.excursionSlug,
 		excursionGroupId: dto.excursionGroupId,

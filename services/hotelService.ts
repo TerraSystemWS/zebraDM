@@ -1,4 +1,6 @@
-import { api } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export interface Hotel {
 	id: number;
@@ -50,6 +52,24 @@ export interface Reservation {
 	status: string;
 	checkedInAt: string | null;
 	checkedOutAt: string | null;
+}
+
+export interface ReservationGuestDocument {
+	id: number;
+	originalFilename: string;
+	contentType: string;
+	sizeBytes: number;
+	uploadedAt: string;
+}
+
+export interface ReservationGuest {
+	id: number;
+	fullName: string;
+	dateOfBirth: string | null;
+	nationality: string | null;
+	passportNumber: string | null;
+	isPrimary: boolean;
+	documents: ReservationGuestDocument[];
 }
 
 export interface HotelAmenity {
@@ -116,6 +136,51 @@ export const hotelService = {
 	checkIn: (id: number): Promise<Reservation> => api.patch<Reservation>(`/api/hotel/reservations/${id}/checkin`, {}),
 	checkOut: (id: number): Promise<Reservation> => api.patch<Reservation>(`/api/hotel/reservations/${id}/checkout`, {}),
 	deleteReservation: (id: number): Promise<void> => api.delete<void>(`/api/hotel/reservations/${id}`),
+
+	getReservationGuests: (reservationId: number): Promise<ReservationGuest[]> =>
+		api.get<ReservationGuest[]>(`/api/hotel/reservations/${reservationId}/guests`),
+
+	addReservationGuest: (
+		reservationId: number,
+		data: { fullName: string; dateOfBirth?: string; nationality?: string; passportNumber?: string; isPrimary?: boolean }
+	): Promise<ReservationGuest> => api.post<ReservationGuest>(`/api/hotel/reservations/${reservationId}/guests`, data),
+
+	deleteReservationGuest: (reservationId: number, guestId: number): Promise<void> =>
+		api.delete<void>(`/api/hotel/reservations/${reservationId}/guests/${guestId}`),
+
+	uploadGuestDocument: async (reservationId: number, guestId: number, file: File): Promise<ReservationGuestDocument> => {
+		const form = new FormData();
+		form.append("file", file);
+		const token = getToken();
+		const res = await fetch(`${API_URL}/api/hotel/reservations/${reservationId}/guests/${guestId}/documents`, {
+			method: "POST",
+			headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+			body: form,
+		});
+		if (!res.ok) {
+			let message = `Erro ${res.status}`;
+			try {
+				const body = await res.json();
+				message = body.message || message;
+			} catch {
+				// ignore
+			}
+			throw new Error(message);
+		}
+		return res.json();
+	},
+
+	deleteGuestDocument: (reservationId: number, guestId: number, docId: number): Promise<void> =>
+		api.delete<void>(`/api/hotel/reservations/${reservationId}/guests/${guestId}/documents/${docId}`),
+
+	downloadGuestDocument: async (reservationId: number, guestId: number, docId: number): Promise<Blob> => {
+		const token = getToken();
+		const res = await fetch(`${API_URL}/api/hotel/reservations/${reservationId}/guests/${guestId}/documents/${docId}`, {
+			headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+		});
+		if (!res.ok) throw new Error(`Erro ${res.status}`);
+		return res.blob();
+	},
 
 	getAmenities: (): Promise<HotelAmenity[]> => api.get<HotelAmenity[]>("/api/hotel-amenities"),
 	createAmenity: (data: Omit<HotelAmenity, "id">): Promise<HotelAmenity> => api.post<HotelAmenity>("/api/hotel-amenities", data),

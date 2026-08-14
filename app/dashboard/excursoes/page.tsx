@@ -15,8 +15,6 @@ const emptyForm = {
 	price: 0,
 	duration: "",
 	location: "",
-	rating: 0,
-	reviews: 0,
 	description: "",
 	categories: "",
 };
@@ -74,8 +72,6 @@ export default function ExcursoesPage() {
 			price: excursao.price,
 			duration: excursao.duration,
 			location: excursao.location,
-			rating: excursao.rating,
-			reviews: excursao.reviews,
 			description: excursao.description,
 			categories: excursao.categories.join(", "),
 		});
@@ -92,8 +88,10 @@ export default function ExcursoesPage() {
 			price: Number(form.price),
 			duration: form.duration,
 			location: form.location,
-			rating: Number(form.rating),
-			reviews: Number(form.reviews),
+			// Avaliação/Nº de Avaliações não são editáveis aqui — recalculados a partir das reviews reais dos
+			// clientes (ver ExcursionReviewController); o backend já ignora estes campos no create/update.
+			rating: editing?.rating ?? 0,
+			reviews: editing?.reviews ?? 0,
 			description: form.description,
 			categories: form.categories.split(",").map((c) => c.trim()).filter(Boolean),
 			status: editing ? editing.status : "ACTIVE",
@@ -197,7 +195,7 @@ export default function ExcursoesPage() {
 						className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 						onClick={openCreate}
 					>
-						Nova Excursão
+						Criar Excursão
 					</button>
 				</div>
 			</div>
@@ -297,7 +295,7 @@ export default function ExcursoesPage() {
 			</div>
 
 			{showForm && (
-				<Modal title={editing ? "Editar Excursão" : "Nova Excursão"} onClose={() => setShowForm(false)}>
+				<Modal title={editing ? "Editar Excursão" : "Criar Excursão"} onClose={() => setShowForm(false)}>
 					<form onSubmit={handleSubmit} className="grid gap-4">
 						<div>
 							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Título</label>
@@ -352,29 +350,6 @@ export default function ExcursoesPage() {
 								value={form.location}
 								onChange={(e) => setForm({ ...form, location: e.target.value })}
 							/>
-						</div>
-						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Avaliação (0-5)</label>
-								<input
-									type="number"
-									step="0.1"
-									min="0"
-									max="5"
-									className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-									value={form.rating}
-									onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })}
-								/>
-							</div>
-							<div>
-								<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Nº de Avaliações</label>
-								<input
-									type="number"
-									className="w-full rounded border px-3 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
-									value={form.reviews}
-									onChange={(e) => setForm({ ...form, reviews: Number(e.target.value) })}
-								/>
-							</div>
 						</div>
 						<div>
 							<label className="mb-1 block text-sm font-bold text-gray-700 dark:text-gray-300">Categorias (separadas por vírgula)</label>
