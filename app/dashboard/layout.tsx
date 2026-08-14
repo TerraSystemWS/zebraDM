@@ -7,9 +7,9 @@ import { isAuthenticated, logout } from "@/lib/auth";
 import { getUser } from "@/lib/api";
 import { contactsService } from "@/services/contactsService";
 import ProfileMenu from "@/components/ProfileMenu";
+import NotificationBell from "@/components/NotificationBell";
 import {
 	BedDouble,
-	Bell,
 	CalendarCheck,
 	CalendarDays,
 	Compass,
@@ -259,14 +259,7 @@ export default function DashboardLayout({
 								</span>
 							)}
 						</Link>
-						<button
-							type="button"
-							className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white"
-							aria-label="Notificações (em breve)"
-							title="Notificações (em breve)"
-						>
-							<Bell size={20} />
-						</button>
+						<NotificationBell />
 					</div>
 
 					<ProfileMenu onLogout={handleLogout} />

@@ -7,6 +7,7 @@ import { settingsService } from "@/services/settingsService";
 
 export default function SettingsPage() {
     const [maintenanceMode, setMaintenanceMode] = useState(0);
+    const [notificationSound, setNotificationSound] = useState(true);
 
     useEffect(() => {
         loadSettings();
@@ -15,6 +16,8 @@ export default function SettingsPage() {
     const loadSettings = async () => {
         const mode = await settingsService.getMaintenanceMode();
         setMaintenanceMode(mode);
+        const soundEnabled = await settingsService.getNotificationSoundEnabled();
+        setNotificationSound(soundEnabled);
     };
 
     const handleMaintenanceToggle = async () => {
@@ -27,6 +30,18 @@ export default function SettingsPage() {
         } catch (error) {
             console.error("Error toggling maintenance mode:", error);
             Swal.fire("Erro", "Falha ao alterar modo de manutenção", "error");
+        }
+    };
+
+    const handleNotificationSoundToggle = async () => {
+        try {
+            const newValue = !notificationSound;
+            await settingsService.setNotificationSoundEnabled(newValue);
+            setNotificationSound(newValue);
+            Swal.fire("Sucesso", `Som das notificações ${newValue ? "Ativado" : "Desativado"}`, "success");
+        } catch (error) {
+            console.error("Error toggling notification sound:", error);
+            Swal.fire("Erro", "Falha ao alterar o som das notificações", "error");
         }
     };
 
@@ -76,6 +91,22 @@ export default function SettingsPage() {
                             className="sr-only peer"
                             checked={maintenanceMode === 1}
                             onChange={handleMaintenanceToggle}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+
+                <div className="mb-6 flex items-center justify-between">
+                    <div>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Som das Notificações</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Toca um som quando um toast de notificação chega no ZebraDash.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={notificationSound}
+                            onChange={handleNotificationSoundToggle}
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                     </label>
