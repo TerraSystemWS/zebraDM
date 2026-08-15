@@ -147,7 +147,10 @@ export default function DashboardLayout({
 	const lojaItems: NavLinkItem[] = [
 		{ label: "Produtos e Estoque", href: "/dashboard/loja", icon: ShoppingBag },
 		{ label: "Encomendas", href: "/dashboard/loja/encomendas", icon: Truck },
+	];
+	const contasItems: NavLinkItem[] = [
 		{ label: "Faturação", href: "/dashboard/faturacao", icon: Receipt },
+		{ label: "Configuração", href: "/dashboard/contas/configuracao", icon: Settings2 },
 	];
 	const conteudoItems: NavLinkItem[] = [
 		{ label: "Blog (Posts)", href: "/dashboard/posts", icon: Newspaper },
@@ -171,6 +174,7 @@ export default function DashboardLayout({
 		...hotelItems.map((i) => i.href),
 		...marketingItems.map((i) => i.href),
 		...lojaItems.map((i) => i.href),
+		...contasItems.map((i) => i.href),
 		...conteudoItems.map((i) => i.href),
 		...(isAdmin ? adminItems.map((i) => i.href) : []),
 	]);
@@ -229,6 +233,8 @@ export default function DashboardLayout({
 					<NavGroup title="Marketing" items={marketingItems} activeHref={activeHref} />
 
 					<NavGroup title="Loja" items={lojaItems} activeHref={activeHref} />
+
+					<NavGroup title="Contas" items={contasItems} activeHref={activeHref} />
 
 					<NavGroup title="Conteúdo" items={conteudoItems} activeHref={activeHref} />
 

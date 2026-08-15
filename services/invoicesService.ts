@@ -26,6 +26,23 @@ export interface Invoice {
 	lines: InvoiceLine[];
 }
 
+export interface InvoiceCompanyProfile {
+	name: string;
+	legalName: string;
+	nif: string;
+	address: string;
+	email: string;
+	logoUrl: string | null;
+}
+
+export interface UpdateInvoiceCompanyProfileInput {
+	name: string;
+	legalName: string;
+	nif: string;
+	address: string;
+	email: string;
+}
+
 export const invoicesService = {
 	getAll: (): Promise<Invoice[]> => api.get<Invoice[]>("/api/invoices"),
 
@@ -38,5 +55,33 @@ export const invoicesService = {
 		const blob = await res.blob();
 		const url = URL.createObjectURL(blob);
 		window.open(url, "_blank");
+	},
+
+	getCompanyProfile: (): Promise<InvoiceCompanyProfile> => api.get<InvoiceCompanyProfile>("/api/invoices/company-profile"),
+
+	updateCompanyProfile: (input: UpdateInvoiceCompanyProfileInput): Promise<InvoiceCompanyProfile> =>
+		api.put<InvoiceCompanyProfile>("/api/invoices/company-profile", input),
+
+	uploadLogo: async (file: File): Promise<InvoiceCompanyProfile> => {
+		const form = new FormData();
+		form.append("file", file);
+
+		const token = getToken();
+		const res = await fetch(`${API_URL}/api/invoices/company-profile/logo`, {
+			method: "POST",
+			headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+			body: form,
+		});
+		if (!res.ok) {
+			let message = `Erro ${res.status}`;
+			try {
+				const body = await res.json();
+				message = body.message || message;
+			} catch {
+				// ignore
+			}
+			throw new Error(message);
+		}
+		return res.json();
 	},
 };
