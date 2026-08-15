@@ -2,7 +2,7 @@ import { api, getToken } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
-export type NotificationType = "HOTEL_RESERVATION" | "EXCURSION_BOOKING" | "CONTACT_MESSAGE" | "REVIEW" | "JOB_APPLICATION";
+export type NotificationType = "HOTEL_RESERVATION" | "EXCURSION_BOOKING" | "CONTACT_MESSAGE" | "REVIEW" | "JOB_APPLICATION" | "ORDER";
 
 export interface Notification {
 	id: number;
