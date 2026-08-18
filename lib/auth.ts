@@ -18,8 +18,8 @@ export interface UpdateMeInput {
 	newPassword?: string;
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
-	const response = await api.post<AuthResponse>("/api/auth/login", { email, password });
+export async function login(email: string, password: string, turnstileToken: string): Promise<AuthResponse> {
+	const response = await api.post<AuthResponse>("/api/auth/login", { email, password, turnstileToken });
 	if (response.role !== "ADMIN" && response.role !== "AGENTE") {
 		throw new Error("Esta conta não tem acesso ao painel administrativo.");
 	}

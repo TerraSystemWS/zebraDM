@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { login, isAuthenticated } from "@/lib/auth";
+import Turnstile, { TurnstileHandle } from "@/components/Turnstile";
 
 export default function LoginPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [turnstileToken, setTurnstileToken] = useState("");
+	const turnstileRef = useRef<TurnstileHandle>(null);
 	const router = useRouter();
 
 	useEffect(() => {
@@ -22,12 +25,14 @@ export default function LoginPage() {
 		setError("");
 		setLoading(true);
 		try {
-			await login(email, password);
+			await login(email, password, turnstileToken);
 			router.push("/dashboard");
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Credenciais inválidas");
 		} finally {
 			setLoading(false);
+			setTurnstileToken("");
+			turnstileRef.current?.reset();
 		}
 	};
 
@@ -82,11 +87,14 @@ export default function LoginPage() {
 							required
 						/>
 					</div>
+					<div className="mb-4">
+						<Turnstile ref={turnstileRef} onVerify={setTurnstileToken} />
+					</div>
 					<div className="flex items-center justify-between">
 						<button
 							className="focus:shadow-outline w-full rounded bg-blue-600 px-4 py-2 font-bold text-white hover:bg-blue-700 focus:outline-none disabled:opacity-50"
 							type="submit"
-							disabled={loading}
+							disabled={loading || !turnstileToken}
 						>
 							{loading ? "A entrar..." : "Entrar"}
 						</button>
